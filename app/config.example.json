@@ -3,6 +3,7 @@
     { "name": "Music", "path": "\\\\SERVER\\SHARE\\Music" }
   ],
   "dbPath": "C:\\TapeC\\tapec.sqlite",
+  "host": "0.0.0.0",
   "port": 32410,
   "allowedExtensions": ["mp3", "mp4", "m4a", "wav"]
 }

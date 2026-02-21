@@ -5,7 +5,31 @@ import fastifyStatic from "@fastify/static";
 import { openDb, upsertMedia } from "./db.js";
 
 function loadConfig() {
-  return JSON.parse(fs.readFileSync(new URL("./config.json", import.meta.url), "utf8"));
+  const defaultConfig = {
+    libraries: [],
+    dbPath: "C:\\TapeC\\tapec.sqlite",
+    host: "0.0.0.0",
+    port: 32410,
+    allowedExtensions: ["mp3", "mp4", "m4a", "wav"]
+  };
+
+  let fileConfig = {};
+
+  try {
+    fileConfig = JSON.parse(
+      fs.readFileSync(new URL("./config.json", import.meta.url), "utf8")
+    );
+  } catch (err) {
+    console.warn("config.json not found or invalid, using defaults.");
+  }
+
+  return {
+    ...defaultConfig,
+    ...fileConfig,
+    host: process.env.TAPEC_HOST ?? fileConfig.host ?? defaultConfig.host,
+    port: Number(process.env.TAPEC_PORT ?? fileConfig.port ?? defaultConfig.port),
+    dbPath: process.env.TAPEC_DB_PATH ?? fileConfig.dbPath ?? defaultConfig.dbPath
+  };
 }
 
 function metaPathForMedia(absPath) {
@@ -257,7 +281,7 @@ async function main() {
   app.get("/api/health", async () => ({ ok: true, name: "TapeC", version: "0.1.0" }));
 
   // Listen (must be after routes)
-  await app.listen({ port: cfg.port, host: "0.0.0.0" });
+await app.listen({ port: cfg.port, host: cfg.host });
 }
 
 await main().catch((err) => {
