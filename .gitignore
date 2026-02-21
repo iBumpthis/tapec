@@ -1,0 +1,17 @@
+# local config (machine-specific)
+app/config.json
+
+# deps
+node_modules/
+app/node_modules/
+
+# sqlite db + WAL files
+tapec.sqlite
+tapec.sqlite-wal
+tapec.sqlite-shm
+
+# misc
+.env
+logs/
+*.log
+bin/

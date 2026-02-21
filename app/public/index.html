@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TapeC</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <h1>TapeC</h1>
+
+  <header>
+    <select id="lib"></select>
+    <input id="q" placeholder="Search filename..." />
+    <select id="ext">
+      <option value="">All types</option>
+      <option value="mp3">mp3</option>
+      <option value="mp4">mp4</option>
+      <option value="m4a">m4a</option>
+      <option value="wav">wav</option>
+    </select>
+    <button id="refresh">Refresh</button>
+	<button id="scan">Scan</button>
+    <span class="small" id="status"></span>
+  </header>
+
+  <div class="list" id="list"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

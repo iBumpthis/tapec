@@ -1,0 +1,8 @@
+{
+  "libraries": [
+    { "name": "Music", "path": "\\\\SERVER\\SHARE\\Music" }
+  ],
+  "dbPath": "C:\\TapeC\\tapec.sqlite",
+  "port": 32410,
+  "allowedExtensions": ["mp3", "mp4", "m4a", "wav"]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "tapec",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "scan": "node scan.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@fastify/static": "^7.0.4",
+    "better-sqlite3": "^11.0.0",
+    "fastify": "^4.28.1"
+  }
+}
