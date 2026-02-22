@@ -134,6 +134,139 @@ function toRelPath(rootAbs, absPath) {
   return path.relative(rootAbs, absPath).split(path.sep).join("/");
 }
 
+function normalizeDashes(s) {
+  return s.replace(/[–—]/g, "-");
+}
+
+function parseTimeToSeconds(t) {
+  const parts = t.split(":").map(n => Number(n));
+  if (parts.some(n => !Number.isFinite(n))) return null;
+
+  if (parts.length === 2) {
+    const [m, s] = parts;
+    if (s < 0 || s > 59 || m < 0) return null;
+    return m * 60 + s;
+  }
+
+  if (parts.length === 3) {
+    const [h, m, s] = parts;
+    if (s < 0 || s > 59 || m < 0 || m > 59 || h < 0) return null;
+    return h * 3600 + m * 60 + s;
+  }
+
+  return null;
+}
+
+const TIME_RE = `(\\d{1,3}:\\d{2}(?::\\d{2})?)`;
+
+function cleanTitle(s) {
+  return s.replace(/^\s*[-|]+\s*/, "").replace(/\s*[-|]+\s*$/, "").trim();
+}
+
+function parseMarkerLine(line) {
+  const rawLine = line;
+  let s = normalizeDashes(String(line ?? "")).trim();
+  if (!s) return null;
+
+  // 1) Bracket/paren range anywhere: Title [00:00-00:40]  OR  Title (00:00-00:40)
+  {
+    const re = new RegExp(`^(.*?)[\\[(]\\s*${TIME_RE}\\s*-\\s*${TIME_RE}\\s*[\\])](.*)$`);
+    const m = s.match(re);
+    if (m) {
+      const start = parseTimeToSeconds(m[2]);
+      const end = parseTimeToSeconds(m[3]);
+      if (start == null || end == null || end < start) return null;
+      const title = cleanTitle(`${m[1]} ${m[4]}`);
+      return { startSeconds: start, endSeconds: end, title: title || `Track @ ${m[2]}`, rawLine };
+    }
+  }
+
+  // 2) Range-first: 00:00-00:40 Intro
+  {
+    const re = new RegExp(`^${TIME_RE}\\s*-\\s*${TIME_RE}\\s*(.+)$`);
+    const m = s.match(re);
+    if (m) {
+      const start = parseTimeToSeconds(m[1]);
+      const end = parseTimeToSeconds(m[2]);
+      if (start == null || end == null || end < start) return null;
+      const title = cleanTitle(m[3]);
+      return { startSeconds: start, endSeconds: end, title: title || `Track @ ${m[1]}`, rawLine };
+    }
+  }
+
+  // 3) Range-last: Intro 00:00-00:40
+  {
+    const re = new RegExp(`^(.*?)\\s+${TIME_RE}\\s*-\\s*${TIME_RE}\\s*$`);
+    const m = s.match(re);
+    if (m) {
+      const start = parseTimeToSeconds(m[2]);
+      const end = parseTimeToSeconds(m[3]);
+      if (start == null || end == null || end < start) return null;
+      const title = cleanTitle(m[1]);
+      return { startSeconds: start, endSeconds: end, title: title || `Track @ ${m[2]}`, rawLine };
+    }
+  }
+
+  // 4) Time-first: 0:00 Intro  OR  0:00 - Intro
+  {
+    const re = new RegExp(`^${TIME_RE}\\s*(?:-\\s*)?(.+)$`);
+    const m = s.match(re);
+    if (m) {
+      const start = parseTimeToSeconds(m[1]);
+      if (start == null) return null;
+      const title = cleanTitle(m[2]);
+      return { startSeconds: start, endSeconds: null, title: title || `Track @ ${m[1]}`, rawLine };
+    }
+  }
+
+  // 5) Time-last: Intro 0:00  OR  Intro - 0:00
+  {
+    const re = new RegExp(`^(.+?)(?:\\s*-)?\\s*${TIME_RE}\\s*$`);
+    const m = s.match(re);
+    if (m) {
+      const start = parseTimeToSeconds(m[2]);
+      if (start == null) return null;
+      const title = cleanTitle(m[1]);
+      return { startSeconds: start, endSeconds: null, title: title || `Track @ ${m[2]}`, rawLine };
+    }
+  }
+
+  return null;
+}
+
+function parseMarkerBlock(text) {
+  const lines = String(text ?? "").split(/\r?\n/);
+  const parsed = [];
+  const errors = [];
+
+  lines.forEach((line, idx) => {
+    const t = line.trim();
+    if (!t) return;
+    const m = parseMarkerLine(t);
+    if (m) parsed.push({ ...m, _i: idx });
+    else errors.push({ line: idx + 1, text: t });
+  });
+
+  // Sort by start time; preserve original order for ties
+  parsed.sort((a, b) => (a.startSeconds - b.startSeconds) || (a._i - b._i));
+
+  // Overlap repair only when previous has an explicit endSeconds
+  for (let i = 1; i < parsed.length; i++) {
+    const prev = parsed[i - 1];
+    const cur = parsed[i];
+    if (prev.endSeconds != null && cur.startSeconds < prev.endSeconds) {
+      cur.wasAdjusted = 1;
+      cur.adjustReason = "overlap: shifted to previous end";
+      cur.startSeconds = prev.endSeconds;
+    }
+  }
+
+  // Strip helper field
+  parsed.forEach(p => delete p._i);
+
+  return { parsed, errors };
+}
+
 function runScan(cfg, db) {
   const scanId = Date.now();
   let totalUpserts = 0;
@@ -231,18 +364,40 @@ async function main() {
 
   // Save meta sidecar
   app.post("/api/media/:id/meta", async (req, reply) => {
-    const id = Number(req.params.id);
-    const row = db.prepare(`SELECT * FROM media WHERE id = ?`).get(id);
-    if (!row) return reply.code(404).send({ error: "Not found" });
+        const body = req.body ?? {};
 
-    const body = req.body ?? {};
-    const markers = Array.isArray(body.markers) ? body.markers : [];
+    // v0.2: accept either structured markers[] OR markerText paste block
+    let incomingMarkers = [];
+    let importErrors = [];
 
-    const cleanMarkers = markers
+    if (typeof body.markerText === "string" && body.markerText.trim().length > 0) {
+      const { parsed, errors } = parseMarkerBlock(body.markerText);
+      importErrors = errors;
+
+      incomingMarkers = parsed.map(m => ({
+        t: m.startSeconds,
+        label: m.title,
+        endSeconds: m.endSeconds ?? null,
+        rawLine: m.rawLine,
+        wasAdjusted: m.wasAdjusted ?? 0,
+        adjustReason: m.adjustReason ?? null
+      }));
+    } else {
+      const markers = Array.isArray(body.markers) ? body.markers : [];
+      incomingMarkers = markers
+        .map(m => ({ t: Number(m.t), label: String(m.label ?? "").trim() }))
+        .filter(m => Number.isFinite(m.t) && m.t >= 0 && m.label.length > 0)
+        .sort((a, b) => a.t - b.t)
+        .map(m => ({ ...m, endSeconds: null, rawLine: null, wasAdjusted: 0, adjustReason: null }));
+    }
+
+    // Clean markers for sidecar (existing behavior)
+    const cleanMarkers = incomingMarkers
       .map(m => ({ t: Number(m.t), label: String(m.label ?? "").trim() }))
       .filter(m => Number.isFinite(m.t) && m.t >= 0 && m.label.length > 0)
       .sort((a, b) => a.t - b.t);
 
+    // Write sidecar (keeps existing UI working)
     try {
       writeMeta(row.absPath, {
         title: body.title ?? undefined,
@@ -254,31 +409,42 @@ async function main() {
       return reply.code(500).send({ error: `Failed to write meta: ${e.message}` });
     }
 
-    return reply.send({ ok: true });
-  });
-
-  // Stream endpoint
-  app.get("/stream/:id", async (req, reply) => {
-    const id = Number(req.params.id);
-    const row = db.prepare(`SELECT * FROM media WHERE id = ?`).get(id);
-    if (!row) return reply.code(404).send();
-
-    if (!fs.existsSync(row.absPath)) return reply.code(404).send();
-    return sendRangeStream(reply, row.absPath, mimeForExt(row.ext));
-  });
-
-  // Scan (so UI button works)
-  app.post("/api/scan", async (req, reply) => {
+    // Write to SQLite markers table (v0.2)
     try {
-      const result = runScan(cfg, db);
-      return reply.send({ ok: true, ...result });
+      const del = db.prepare(`DELETE FROM markers WHERE mediaId = ?`);
+      const ins = db.prepare(`
+        INSERT INTO markers (mediaId, startSeconds, endSeconds, title, rawLine, wasAdjusted, adjustReason, createdAtMs)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      const tx = db.transaction((mediaId, list) => {
+        del.run(mediaId);
+        const now = Date.now();
+        for (const m of list) {
+          ins.run(
+            mediaId,
+            Number(m.t),
+            m.endSeconds == null ? null : Number(m.endSeconds),
+            String(m.label),
+            m.rawLine == null ? null : String(m.rawLine),
+            m.wasAdjusted ? 1 : 0,
+            m.adjustReason == null ? null : String(m.adjustReason),
+            now
+          );
+        }
+      });
+
+      tx(row.id, incomingMarkers);
     } catch (e) {
-      return reply.code(500).send({ ok: false, error: e.message });
+      return reply.code(500).send({ error: `Failed to write markers to DB: ${e.message}` });
+    }
+
+    return reply.send({ ok: true, importErrors });
     }
   });
 
   // Health
-  app.get("/api/health", async () => ({ ok: true, name: "TapeC", version: "0.1.0" }));
+app.get("/api/health", async () => ({ ok: true, name: "TapeC", version: "0.2.0-dev" }));
 
   // Listen (must be after routes)
 await app.listen({ port: cfg.port, host: cfg.host });
