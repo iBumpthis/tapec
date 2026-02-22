@@ -106,14 +106,35 @@ async function save() {
   setTimeout(() => (elSaveStatus.textContent = ""), 1500);
 }
 
-elImportBtn.addEventListener("click", () => {
-  const parsed = parseImport(elImportBox.value);
-  if (parsed.length) {
-    markers = parsed; // overwrite for v0.1
-    renderMarkers();
-  }
-});
+if (elImportBtn && elImportBox) {
+  elImportBtn.addEventListener("click", async () => {
+    const markerText = (elImportBox.value || "").trim();
+    if (!markerText) return;
 
-elSaveBtn.addEventListener("click", save);
+    elSaveStatus.textContent = "Importing...";
+
+    const res = await fetch(`/api/media/${encodeURIComponent(id)}/meta`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markerText, notes: elNotes.value })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      elSaveStatus.textContent = data?.error ?? "Import failed";
+      return;
+    }
+
+    const errCount = Array.isArray(data.importErrors) ? data.importErrors.length : 0;
+    elSaveStatus.textContent = errCount
+      ? `Imported (skipped ${errCount} line(s)) ✅`
+      : "Imported ✅";
+
+    await load();
+    setTimeout(() => (elSaveStatus.textContent = ""), 2000);
+  });
+}
+
+if (elSaveBtn) elSaveBtn.addEventListener("click", save);
 
 load();

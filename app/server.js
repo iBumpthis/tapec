@@ -261,7 +261,6 @@ function parseMarkerBlock(text) {
     }
   }
 
-  // Strip helper field
   parsed.forEach(p => delete p._i);
 
   return { parsed, errors };
@@ -362,9 +361,28 @@ async function main() {
     });
   });
 
-  // Save meta sidecar
+  // Stream endpoint (Range-based)
+  app.get("/stream/:id", async (req, reply) => {
+    const id = Number(req.params.id);
+    const row = db.prepare(`SELECT * FROM media WHERE id = ?`).get(id);
+    if (!row) return reply.code(404).send();
+
+    try {
+      if (!fs.existsSync(row.absPath)) return reply.code(404).send();
+      return sendRangeStream(reply, row.absPath, mimeForExt(row.ext));
+    } catch (e) {
+      console.error("[TapeC] stream error", { id, err: e?.message ?? String(e) });
+      return reply.code(500).send();
+    }
+  });
+
+  // Save meta sidecar + write markers to DB
   app.post("/api/media/:id/meta", async (req, reply) => {
-        const body = req.body ?? {};
+    const id = Number(req.params.id);
+    const row = db.prepare(`SELECT * FROM media WHERE id = ?`).get(id);
+    if (!row) return reply.code(404).send({ error: "Not found" });
+
+    const body = req.body ?? {};
 
     // v0.2: accept either structured markers[] OR markerText paste block
     let incomingMarkers = [];
@@ -440,14 +458,55 @@ async function main() {
     }
 
     return reply.send({ ok: true, importErrors });
+  });
+
+  // Scan (so UI button works)
+  app.post("/api/scan", async (req, reply) => {
+    try {
+      const result = runScan(cfg, db);
+      return reply.send({ ok: true, ...result });
+    } catch (e) {
+      return reply.code(500).send({ ok: false, error: e.message });
     }
   });
 
   // Health
-app.get("/api/health", async () => ({ ok: true, name: "TapeC", version: "0.2.0-dev" }));
+  app.get("/api/health", async () => ({ ok: true, name: "TapeC", version: "0.2.0-dev" }));
+
+  // Debug (temporary)
+  app.get("/api/debug/exists/:id", async (req, reply) => {
+    const id = Number(req.params.id);
+    const row = db.prepare(`SELECT id, absPath, ext FROM media WHERE id = ?`).get(id);
+    if (!row) return reply.code(404).send({ ok: false, error: "No DB row for id" });
+
+    let exists = false;
+    let stat = null;
+    let statErr = null;
+
+    try {
+      exists = fs.existsSync(row.absPath);
+      if (exists) {
+        const s = fs.statSync(row.absPath);
+        stat = { size: s.size, mtimeMs: s.mtimeMs, isFile: s.isFile() };
+      }
+    } catch (e) {
+      statErr = String(e?.message ?? e);
+    }
+
+    return reply.send({
+      ok: true,
+      id: row.id,
+      absPath: row.absPath,
+      exists,
+      stat,
+      statErr,
+      whoami: process.env.USERNAME,
+      cwd: process.cwd()
+    });
+  });
 
   // Listen (must be after routes)
-await app.listen({ port: cfg.port, host: cfg.host });
+  await app.listen({ port: cfg.port, host: cfg.host });
 }
 
 await main().catch((err) => {
