@@ -13,7 +13,7 @@ sets, albums with cue points, etc.).
 
 ## Status
 
-**v0.1 stable**
+**v0.2.1 stable**
 
 This repository represents a working baseline:
 
@@ -21,7 +21,7 @@ This repository represents a working baseline:
 -   Stale cleanup on rename/delete
 -   Library browsing + search
 -   Player page
--   Marker import (v0 format)
+-   Marker import (v0.2 format)
 -   Stable server lifecycle
 
 ------------------------------------------------------------------------
@@ -32,7 +32,7 @@ This repository represents a working baseline:
 
 -   Fastify server (awaited main lifecycle)
 -   SQLite database with `lastSeenScan` tracking
--   Range-based streaming for MP3 / MP4
+-   Range-based streaming for MP3 / MP4 / m4a / WAV
 -   Stale media cleanup after scan
 -   API endpoints:
     -   `GET /api/library`
@@ -55,12 +55,22 @@ This repository represents a working baseline:
 Current importer accepts:
 
     MM:SS Track Name
+	Track Name HH:MM:SS
+	Track Name [MM:SS-MM:SS]
+	...
+	And similar variations on a per line basis in the Import Markers block
 
 Example:
 
     00:00 Intro
     01:42 First Track
     05:13 Second Track
+	
+	OR 
+	
+	Track One [00:00-00:45]
+	Track Two [00:45-03:22]
+
 
 Future versions may support additional formats (e.g., ranges and overlap
 repair), but v0 intentionally keeps parsing simple and predictable.
