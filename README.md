@@ -139,6 +139,27 @@ Open in browser:
 
 ------------------------------------------------------------------------
 
+## Metadata Storage (v0.2.1+)
+
+TapeC stores all metadata locally and never writes to media source directories.
+
+Metadata location (Windows):
+C:\ProgramData\TapeC\metadata
+
+Structure:
+<LibraryName>/<relative media path>.meta.json
+
+Example:
+C:\ProgramData\TapeC\metadata\Music\Artist\Track.mp4.meta.json
+
+Why
+- Allows media libraries to be read-only (e.g., NAS shares)
+- Prevents accidental writes to source media folders
+- Keeps repository clean
+- Centralizes metadata for backup
+
+------------------------------------------------------------------------
+
 ## Roadmap (Next Phases)
 
 -   Smarter marker import (range support + overlap repair)
