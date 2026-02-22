@@ -1,3 +1,5 @@
+console.log("TapeC player.js v0.2.1-dev", new Date().toISOString());
+
 const params = new URLSearchParams(location.search);
 const id = params.get("id");
 
@@ -6,8 +8,8 @@ const elSub = document.getElementById("sub");
 const elPlayer = document.getElementById("player");
 const elMarkers = document.getElementById("markers");
 const elNotes = document.getElementById("notes");
-const elImportBox = document.getElementById("importBox");
-const elImportBtn = document.getElementById("importBtn");
+const elMarkerText = document.getElementById("markerText");
+const elImportMarkersBtn = document.getElementById("importMarkersBtn");
 const elSaveBtn = document.getElementById("saveBtn");
 const elSaveStatus = document.getElementById("saveStatus");
 
@@ -106,10 +108,13 @@ async function save() {
   setTimeout(() => (elSaveStatus.textContent = ""), 1500);
 }
 
-if (elImportBtn && elImportBox) {
-  elImportBtn.addEventListener("click", async () => {
-    const markerText = (elImportBox.value || "").trim();
-    if (!markerText) return;
+if (elImportMarkersBtn && elMarkerText) {
+  elImportMarkersBtn.addEventListener("click", async () => {
+    const markerText = (elMarkerText.value || "").trim();
+    if (!markerText) {
+      elSaveStatus.textContent = "Paste a tracklist first";
+      return;
+    }
 
     elSaveStatus.textContent = "Importing...";
 
@@ -125,10 +130,13 @@ if (elImportBtn && elImportBox) {
       return;
     }
 
+    const savedCount = data?.saved?.markerCount ?? null;
     const errCount = Array.isArray(data.importErrors) ? data.importErrors.length : 0;
-    elSaveStatus.textContent = errCount
-      ? `Imported (skipped ${errCount} line(s)) ✅`
-      : "Imported ✅";
+
+    elSaveStatus.textContent =
+      savedCount != null
+        ? `Imported ${savedCount} marker(s)${errCount ? ` (skipped ${errCount})` : ""} ✅`
+        : (errCount ? `Imported (skipped ${errCount}) ✅` : "Imported ✅");
 
     await load();
     setTimeout(() => (elSaveStatus.textContent = ""), 2000);
