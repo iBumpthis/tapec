@@ -1,19 +1,114 @@
-body { font-family: system-ui, sans-serif; margin: 16px; }
-header { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-input, select, button, textarea { padding: 8px; font-size: 14px; }
-.list { margin-top: 12px; display: grid; gap: 8px; }
-.item { padding: 10px; border: 1px solid #ddd; border-radius: 10px; display:flex; justify-content:space-between; gap:12px; }
-.item a { text-decoration: none; }
-.small { opacity: 0.7; font-size: 12px; }
+body {
+    font-family: system-ui, sans-serif;
+    margin: 16px;
+    background-color: #768692;
+}
 
-.panel { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
-@media (max-width: 900px) { .panel { grid-template-columns: 1fr; } }
+header {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
 
-.marker { display:flex; justify-content:space-between; gap:10px; padding:6px 8px; border:1px solid #eee; border-radius:10px; margin-bottom:8px; cursor:pointer; }
-.marker:hover { background: #f6f6f6; }
+input,
+select,
+button,
+textarea {
+    padding: 8px;
+    font-size: 14px;
+}
 
-textarea { width: 100%; min-height: 120px; }
-video { width: 100%; max-height: 60vh; background: #000; border-radius: 12px; }
+.list {
+    margin-top: 12px;
+    display: grid;
+    gap: 8px;
+}
 
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-.row { margin-top: 8px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.list a {
+    color: #616E78;
+}
+
+.list a:visited {
+    color: #616E78;
+}
+
+.list a:hover {
+    color: #91837D;
+}
+
+.item {
+    background-color: #B4CCDE;
+    padding: 10px;
+    border: 1px solid #616E78;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.item a {
+    text-decoration: none;
+}
+
+.small {
+    opacity: 0.7;
+    font-size: 12px;
+}
+
+.panel {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .panel {
+        grid-template-columns: 1fr;
+    }
+}
+
+.marker {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 6px 8px;
+    border: 1px solid #424B52;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    background-color: #B4CCDE;
+}
+
+.marker:hover {
+    background: #DEB29E;
+    border: 1px solid #91837D;
+}
+
+textarea {
+    width: 100%;
+    min-height: 120px;
+    background-color: #B4CCDE;
+    border: 1px solid #424B52;
+}
+
+video {
+    width: 100%;
+    max-height: 60vh;
+    background: #000;
+    border-radius: 12px;
+}
+
+.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.row {
+    margin-top: 8px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}

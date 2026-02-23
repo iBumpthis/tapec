@@ -1,11 +1,13 @@
 <!doctype html>
 <html>
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>TapeC Player</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
+
 <body>
   <a href="/">← Back</a>
   <h1 id="title">TapeC Player</h1>
@@ -16,30 +18,34 @@
     <div>
       <video id="player" controls></video>
 
-      <h3>Notes</h3>
-      <textarea id="notes" placeholder="Notes..."></textarea>
-
-      <h3>Paste Tracklist (v0.2)</h3>
-      <textarea id="markerText" rows="10" class="mono" placeholder="0:00 Intro&#10;01:10 Track name&#10;05:08 Another track"></textarea>
-
       <div class="row">
-        <button id="importMarkersBtn">Import Markers</button>
-        <span id="importStatus" class="small"></span>
-      </div>
+        <h3>Notes/Description</h3>
+        <textarea id="notes" placeholder="Notes..."></textarea>
 
-      <div class="row">
-        <button id="saveBtn">Save</button>
-        <span id="saveStatus" class="small"></span>
+        <h3>Paste Tracklist (v0.2)</h3>
+        <textarea id="markerText" rows="10" class="mono"
+          placeholder="0:00 Intro&#10;01:10 Track name&#10;05:08 Another track"></textarea>
+
+        <div class="row">
+          <button id="importMarkersBtn">Import Markers</button>
+          <span id="importStatus" class="small"></span>
+        </div>
+
+        <div class="row">
+          <button id="saveBtn">Save</button>
+          <span id="saveStatus" class="small"></span>
+        </div>
       </div>
     </div>
 
     <!-- RIGHT: markers list -->
     <div>
-      <h3>Markers</h3>
+      <h3>Track Markers</h3>
       <div id="markers"></div>
     </div>
   </div>
 
   <script src="/player.js"></script>
 </body>
+
 </html>

@@ -4,16 +4,16 @@ TapeC is a lightweight local media server + web UI for browsing and
 playing a personal library with timestamp markers (DJ mixes, long-form
 sets, albums with cue points, etc.).
 
--   **Backend:** Fastify + SQLite\
--   **Frontend:** Vanilla HTML/CSS/JS\
--   **Streaming:** Range-based MP3/MP4 streaming\
+-   **Backend:** Fastify + SQLite
+-   **Frontend:** Vanilla HTML/CSS/JS
+-   **Streaming:** Range-based MP3/MP4 streaming
 -   **Config:** JSON (UNC paths supported on Windows)
 
 ------------------------------------------------------------------------
 
 ## Status
 
-**v0.2.1 stable**
+**v0.2.2 stable**
 
 This repository represents a working baseline:
 
@@ -21,7 +21,7 @@ This repository represents a working baseline:
 -   Stale cleanup on rename/delete
 -   Library browsing + search
 -   Player page
--   Marker import (v0.2 format)
+-   Track Marker Import (v0.2 format)
 -   Stable server lifecycle
 
 ------------------------------------------------------------------------
@@ -123,6 +123,18 @@ Example structure:
 }
 ```
 
+Libraries were updated to an array starting in v0.2.1 to allow multiple
+libraries/directories to be loaded
+
+Example Structure:
+
+``` json
+    "libraries": [
+    { "name": "Music", "path": "\\\\SERVERorHOST\\directoryA\\mixtapes" },
+    { "name": "Concerts", "path": "\\\\SERVERorHOST\\directoryB\\concerts" }
+  ],
+```
+
 ------------------------------------------------------------------------
 
 ## Run
@@ -134,6 +146,12 @@ From the app directory:
 Open in browser:
 
     http://localhost:32410
+
+(Optional):
+
+    Run as service and start on boot for local media servers
+    Locally using NSSM
+    Current state requires a service stop/start for any js file changes, recommend a .bat if tinkering
 
 ------------------------------------------------------------------------
 
@@ -163,20 +181,38 @@ Example:
 C:\ProgramData\TapeC\metadata\Music\Artist\Track.mp4.meta.json
 
 Why
-- Allows media libraries to be read-only (e.g., NAS shares)
-- Prevents accidental writes to source media folders
-- Keeps repository clean
-- Centralizes metadata for backup
+-   Allows media libraries to be read-only (e.g., NAS shares)
+-   Prevents accidental writes to source media folders
+-   Keeps repository clean
+-   Centralizes metadata for backup
 
 ------------------------------------------------------------------------
 
 ## Roadmap (Next Phases)
 
 -   Smarter marker import (range support + overlap repair)
--   Playlist system
+-   Playlist System (for single file/mp3 playback)
+    -   Long future phase for playlist creation off markers from longer videos
+    -   Long future phase for party input/queue system
 -   MP4 audio-only toggle
+    -   Playback of video files in audio only mode
+    -   Likely to start with simplified audio only player
+    -   Future ffmpeg transcode to audio format
 -   Metadata UX polish
--   Mobile export
+-   Mobile Export
+    -   Save and play locally on mobile device or save Audio/Video to mobile device
+-   Visualizer for non video playback
+    -   Toggle to display vizualizer on video files
+-   True dark mode / light mode toggle
+
+
+------------------------------------------------------------------------
+
+## Last Significant Change
+
+v0.2.2
+-   Basic CSS/HTML Updates to improve format/reduce brightness
+-   Display Only
 
 ------------------------------------------------------------------------
 
