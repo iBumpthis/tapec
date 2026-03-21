@@ -9,9 +9,28 @@
 </head>
 
 <body>
-  <a href="/">← Back</a>
+  <div class="player-nav">
+    <button id="backBtn">Back to Library</button>
+    <button id="browseBtn">Browse Library</button>
+  </div>
   <h1 id="title">TapeC Player</h1>
   <div class="small" id="sub"></div>
+
+  <!-- Browse overlay -->
+  <div id="browseOverlay" class="browse-overlay hidden">
+    <div class="browse-panel">
+      <div class="browse-header">
+        <span class="browse-title">Browse Library</span>
+        <button id="browseClose">✕</button>
+      </div>
+      <div class="browse-controls">
+        <select id="browseLib"></select>
+        <input id="browseQ" placeholder="Search..." />
+      </div>
+      <div id="browseList" class="browse-list"></div>
+    </div>
+    <div class="browse-backdrop" id="browseBackdrop"></div>
+  </div>
 
   <div class="panel">
     <!-- LEFT: player + editing -->
