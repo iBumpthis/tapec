@@ -16,6 +16,35 @@ function fmtBytes(n) {
   return `${gb.toFixed(2)} GB`;
 }
 
+// Parse display fields from filename convention: "{ARTIST} - {TRACK} ({YEAR}).ext"
+// Returns { artist, title, year } — all fields optional/null if not parseable.
+// Falls back gracefully: if nothing matches, title = stripped filename.
+function parseFilename(filename) {
+  // Strip extension
+  const base = filename.replace(/\.[^.]+$/, "");
+
+  // Pull year from last parenthesised 4-digit number, ignoring (WR) and similar
+  let year = null;
+  const yearMatch = base.match(/\((\d{4})\)/);
+  if (yearMatch) year = yearMatch[1];
+
+  // Strip all parenthesised segments to clean up title/artist split
+  const stripped = base.replace(/\([^)]*\)/g, "").trim();
+
+  // Split on first " - " to get artist / track
+  const dashIdx = stripped.indexOf(" - ");
+  if (dashIdx !== -1) {
+    return {
+      artist: stripped.slice(0, dashIdx).trim(),
+      title: stripped.slice(dashIdx + 3).trim(),
+      year
+    };
+  }
+
+  // No " - " found — use whole stripped string as title
+  return { artist: null, title: stripped || filename, year };
+}
+
 async function loadLibrary() {
   elStatus.textContent = "Loading...";
   const lib = elLib.value || "";
@@ -46,18 +75,24 @@ async function loadLibrary() {
 
   elList.innerHTML = "";
   for (const it of data.items) {
+    const { artist, title, year } = parseFilename(it.filename);
+
     const row = document.createElement("div");
     row.className = "item";
 
     const left = document.createElement("div");
     const a = document.createElement("a");
     a.href = `/player.html?id=${encodeURIComponent(it.id)}`;
-    a.textContent = it.filename;
+
+    // Primary display: "Artist - Title" or just "Title" if no artist parsed
+    a.textContent = artist ? `${artist} - ${title}` : title;
     left.appendChild(a);
 
+    // Sub-line: library • ext • size • year (if present)
     const meta = document.createElement("div");
     meta.className = "small";
-    meta.textContent = `${it.libName} • ${it.ext.toUpperCase()} • ${fmtBytes(it.sizeBytes)}`;
+    const yearPart = year ? ` • ${year}` : "";
+    meta.textContent = `${it.libName} • ${it.ext.toUpperCase()} • ${fmtBytes(it.sizeBytes)}${yearPart}`;
     left.appendChild(meta);
 
     const right = document.createElement("div");
