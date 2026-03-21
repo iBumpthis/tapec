@@ -13,7 +13,7 @@ sets, albums with cue points, etc.).
 
 ## Status
 
-**v0.2.3 stable**
+**v0.2.4 stable**
 
 This repository represents a working baseline:
 
@@ -283,11 +283,13 @@ Why separate metadata storage:
 
 ## Last Significant Change
 
-v0.2.2 / v0.2.3
--   Deployment architecture/directory added for Docker
--   Version control alignment/variable
--   Basic CSS/HTML Updates to improve format/reduce brightness
--   Display Only
+v0.2.4
+-   Track / Filename Parsing Update
+    -   Cleaned display of raw filename loads for ingest
+    -   Format based on `artist - trackOrEvent (YEAR).ext`
+    -   Parses to Artist - Track or Event in main line
+    -   Drops year to sub line
+    -   Strips other denotations in parenthesis
 
 ------------------------------------------------------------------------
 

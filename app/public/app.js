@@ -92,7 +92,7 @@ async function loadLibrary() {
     const meta = document.createElement("div");
     meta.className = "small";
     const yearPart = year ? ` • ${year}` : "";
-    meta.textContent = `${it.libName} • ${it.ext.toUpperCase()} • ${fmtBytes(it.sizeBytes)}${yearPart}`;
+    meta.textContent = `${fmtBytes(it.sizeBytes)}${yearPart} • ${it.libName} • ${it.ext.toUpperCase()}`;
     left.appendChild(meta);
 
     const right = document.createElement("div");
