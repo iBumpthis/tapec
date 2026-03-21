@@ -1,8 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import { openDb, upsertMedia } from "./db.js";
+
+const require = createRequire(import.meta.url);
+const { version } = require("./package.json");
 
 function loadConfig() {
   const defaultConfig = {
@@ -604,7 +608,7 @@ app.post("/api/media/:id/meta", async (req, reply) => {
   });
 
   // Health
-  app.get("/api/health", async () => ({ ok: true, name: "TapeC", version: "0.2.1-dev" }));
+  app.get("/api/health", async () => ({ ok: true, name: "TapeC", version }));
 
   // Debug (temporary)
   app.get("/api/debug/exists/:id", async (req, reply) => {

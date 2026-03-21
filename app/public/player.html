@@ -46,6 +46,15 @@
   </div>
 
   <script src="/player.js"></script>
+  <footer class="app-footer">
+    TapeC <span id="app-version">—</span>
+  </footer>
+  <script>
+    fetch("/api/health")
+      .then(r => r.json())
+      .then(d => { document.getElementById("app-version").textContent = d.version ?? ""; })
+      .catch(() => {});
+  </script>
 </body>
 
 </html>
