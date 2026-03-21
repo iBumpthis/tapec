@@ -171,8 +171,8 @@ Open in browser:
 
 **Updating after a code change:**
 
-git pull origin main
-docker compose down && docker compose up -d --build
+    git pull origin main
+    docker compose down && docker compose up -d --build
 
 The `--build` flag ensures the image is rebuilt from updated source.
 Docker layer caching keeps this fast when dependencies haven't changed.
