@@ -91,8 +91,8 @@ async function loadLibrary() {
     // Sub-line: library • ext • size • year (if present)
     const meta = document.createElement("div");
     meta.className = "small";
-    const yearPart = year ? ` • ${year}` : "";
-    meta.textContent = `${fmtBytes(it.sizeBytes)}${yearPart} • ${it.libName} • ${it.ext.toUpperCase()}`;
+    const yearPart = year ? `${year} • ` : "";
+    meta.textContent = `${yearPart}${fmtBytes(it.sizeBytes)} • ${it.libName} • ${it.ext.toUpperCase()}`;
     left.appendChild(meta);
 
     const right = document.createElement("div");
