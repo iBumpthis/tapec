@@ -55,22 +55,21 @@ This repository represents a working baseline:
 Current importer accepts:
 
     MM:SS Track Name
-	Track Name HH:MM:SS
-	Track Name [MM:SS-MM:SS]
-	...
-	And similar variations on a per line basis in the Import Markers block
+    Track Name HH:MM:SS
+    Track Name [MM:SS-MM:SS]
+    ...
+    And similar variations on a per line basis in the Import Markers block
 
 Example:
 
     00:00 Intro
     01:42 First Track
     05:13 Second Track
-	
-	OR 
-	
-	Track One [00:00-00:45]
-	Track Two [00:45-03:22]
 
+    OR
+
+    Track One [00:00-00:45]
+    Track Two [00:45-03:22]
 
 Future versions may support additional formats (e.g., ranges and overlap
 repair), but v0 intentionally keeps parsing simple and predictable.
@@ -79,9 +78,9 @@ repair), but v0 intentionally keeps parsing simple and predictable.
 
 ## Requirements
 
--   Node.js v22+
--   Windows primary test environment (UNC paths supported)
--   No Docker required
+-   Node.js v22+ (direct deployment)
+-   Docker + Docker Compose (containerized deployment)
+-   Windows or Linux (both supported; see deployment options below)
 
 ------------------------------------------------------------------------
 
@@ -89,12 +88,8 @@ repair), but v0 intentionally keeps parsing simple and predictable.
 
 Clone the repository:
 
-    git clone https://github.com/YOURUSERNAME/tapec.git
-    cd tapec/app
-
-Install dependencies:
-
-    npm install
+    git clone https://github.com/iBumpthis/tapec.git
+    cd tapec
 
 ------------------------------------------------------------------------
 
@@ -102,15 +97,21 @@ Install dependencies:
 
 Copy the example config:
 
-    copy config.example.json config.json
+**Linux / macOS:**
+
+    cp app/config.example.json app/config.json
+
+**Windows:**
+
+    copy app\config.example.json app\config.json
 
 Edit `config.json`:
 
--   Set `libraries[].path` (UNC path or local path)
--   Set `dbPath` (default example: `C:\TapeC\tapec.sqlite`)
+-   Set `libraries[].path` to your media directories
+-   Set `dbPath` to your preferred SQLite location
 -   Set `port` (default: `32410`)
 
-Example structure:
+### Example — Windows (UNC paths)
 
 ``` json
 {
@@ -123,47 +124,117 @@ Example structure:
 }
 ```
 
-Libraries were updated to an array starting in v0.2.1 to allow multiple
-libraries/directories to be loaded
-
-Example Structure:
+### Example — Linux (local or mounted paths)
 
 ``` json
-    "libraries": [
-    { "name": "Music", "path": "\\\\SERVERorHOST\\directoryA\\mixtapes" },
-    { "name": "Concerts", "path": "\\\\SERVERorHOST\\directoryB\\concerts" }
+{
+  "libraries": [
+    { "name": "Music", "path": "/mnt/media/music" }
   ],
+  "dbPath": "/var/lib/tapec/tapec.sqlite",
+  "port": 32410,
+  "allowedExtensions": ["mp3", "mp4", "m4a", "wav"]
+}
+```
+
+Libraries are defined as an array (since v0.2.1) to support multiple
+directories:
+
+``` json
+"libraries": [
+  { "name": "Music",    "path": "/mnt/media/mixtapes" },
+  { "name": "Concerts", "path": "/mnt/media/concerts" }
+]
 ```
 
 ------------------------------------------------------------------------
 
-## Run
+## Deployment
 
-From the app directory:
+TapeC supports two deployment paths. Docker is recommended for Linux
+home server setups. Direct Node is straightforward on any platform.
 
+### Option A — Docker (recommended for Linux)
+
+Ensure Docker and Docker Compose are installed, then from the repo root:
+
+    docker compose up -d --build
+
+This builds the image and starts TapeC in a detached container.
+
+Open in browser:
+
+    http://<host-ip>:32410
+
+**Updating after a code change:**
+
+    git pull origin main
+    docker compose down && docker compose up -d --build
+
+The `--build` flag ensures the image is rebuilt from updated source.
+Docker layer caching keeps this fast when dependencies haven't changed.
+
+**Viewing logs:**
+
+    docker compose logs -f
+
+---
+
+### Option B — Direct Node
+
+From the `app` directory:
+
+    npm install
     npm start
 
 Open in browser:
 
     http://localhost:32410
 
-(Optional):
+**Running as a service (Windows — NSSM):**
 
-    Run as service and start on boot for local media servers
-    Locally using NSSM
-    Current state requires a service stop/start for any js file changes, recommend a .bat if tinkering
+    Install NSSM, point it at node.exe with server.js as the argument.
+    A service stop/start is required for any JS file changes.
+    A .bat wrapper is recommended if iterating frequently.
+
+**Running as a service (Linux — systemd):**
+
+Create `/etc/systemd/system/tapec.service`:
+
+``` ini
+[Unit]
+Description=TapeC Media Server
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/node /path/to/tapec/app/server.js
+WorkingDirectory=/path/to/tapec/app
+Restart=on-failure
+User=youruser
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then:
+
+    sudo systemctl enable tapec
+    sudo systemctl start tapec
 
 ------------------------------------------------------------------------
 
 ## Project Layout
 
-    /app
-      server.js
-      scan.js
-      db.js
-      config.example.json
-      package.json
-      public/
+    /
+      docker-compose.yml
+      Dockerfile
+      /app
+        server.js
+        scan.js
+        db.js
+        config.example.json
+        package.json
+        public/
 
 ------------------------------------------------------------------------
 
@@ -171,16 +242,19 @@ Open in browser:
 
 TapeC stores all metadata locally and never writes to media source directories.
 
-Metadata location (Windows):
-C:\ProgramData\TapeC\metadata
+**Windows:**
 
-Structure:
-<LibraryName>/<relative media path>.meta.json
+    Metadata location: C:\ProgramData\TapeC\metadata
+    Structure: <LibraryName>\<relative media path>.meta.json
+    Example:   C:\ProgramData\TapeC\metadata\Music\Artist\Track.mp4.meta.json
 
-Example:
-C:\ProgramData\TapeC\metadata\Music\Artist\Track.mp4.meta.json
+**Linux (Docker or direct):**
 
-Why
+    Metadata location: /var/lib/tapec/metadata
+    Structure: <LibraryName>/<relative media path>.meta.json
+    Example:   /var/lib/tapec/metadata/Music/Artist/Track.mp4.meta.json
+
+Why separate metadata storage:
 -   Allows media libraries to be read-only (e.g., NAS shares)
 -   Prevents accidental writes to source media folders
 -   Keeps repository clean
@@ -205,7 +279,6 @@ Why
     -   Toggle to display vizualizer on video files
 -   True dark mode / light mode toggle
 
-
 ------------------------------------------------------------------------
 
 ## Last Significant Change
@@ -224,8 +297,8 @@ MIT --- see LICENSE.
 
 ## Note
 
-TapeC was initially developed with the assistance of ChatGPT as part of
-a proof-of-concept and learning process.
+TapeC was initially developed with the assistance of AI tools as part of
+a proof of concept and learning process.
 
 While functional, this project is evolving. Review, test, and apply your
 own security and production best practices before deploying in sensitive
