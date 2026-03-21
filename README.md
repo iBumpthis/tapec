@@ -43,8 +43,8 @@ This repository represents a working baseline:
 
 ### Frontend
 
--   Library listing with search/filter
--   Player page
+-   Library listing with search/filter and filename parsing
+-   Player page with browse while playing overlay
 -   Marker import (format below)
 -   Scan button triggers `/api/scan`
 
@@ -158,7 +158,10 @@ home server setups. Direct Node is straightforward on any platform.
 
 Ensure Docker and Docker Compose are installed, then from the repo root:
 
+    ``` json
+    cd deploy
     docker compose up -d --build
+    ```
 
 This builds the image and starts TapeC in a detached container.
 
@@ -171,8 +174,26 @@ Open in browser:
     git pull origin main
     docker compose down && docker compose up -d --build
 
-The `--build` flag ensures the image is rebuilt from updated source.
-Docker layer caching keeps this fast when dependencies haven't changed.
+    The `--build` flag ensures the image is rebuilt from updated source.
+    Docker layer caching keeps this fast when dependencies haven't changed.
+
+**Alternatively - Update with Deploy Script**
+
+    ``` json
+    #!/bin/bash
+    set -e
+
+    echo "[TapeC] Pulling latest from origin/main..."
+    git pull origin main
+
+    echo "[TapeC] Rebuilding and restarting container..."
+    docker compose down && docker compose up -d --build
+
+    echo "[TapeC] Deploy complete."
+    docker compose ps
+    ```
+    
+    By running `./deploy.sh` from `deploy/`
 
 **Viewing logs:**
 
@@ -226,15 +247,23 @@ Then:
 ## Project Layout
 
     /
-      docker-compose.yml
-      Dockerfile
-      /app
-        server.js
-        scan.js
-        db.js
-        config.example.json
-        package.json
-        public/
+        /app
+            public/
+                app.js
+                index.html
+                player.html
+                player.js
+                styles.css
+            server.js
+            scan.js
+            db.js
+            config.example.json
+            package.json
+        /deploy
+            Dockerfile
+            docker-compose.example.yml
+            deploy.sh
+            tapec.service
 
 ------------------------------------------------------------------------
 
