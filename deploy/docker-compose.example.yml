@@ -1,0 +1,20 @@
+services:
+  tapec:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tapec
+    restart: unless-stopped
+    ports:
+      - "32410:32410"
+    volumes:
+      # Config — bind-mounted so library paths can be edited without rebuild
+      - ./config.json:/app/config.json:ro
+      # Media source — read-only mount to your media location
+      - /your/media/path:/media:ro
+      # Persistent data — DB and metadata (survives container rebuilds)
+      - /your/data/path/db:/data/db
+      - /your/data/path/metadata:/data/metadata
+    environment:
+      - TAPEC_DB_PATH=/data/db/tapec.sqlite
+      - TAPEC_META_ROOT=/data/metadata

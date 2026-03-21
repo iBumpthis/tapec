@@ -1,0 +1,19 @@
+[Unit]
+Description=TapeC Media Server
+# Docker must be running
+After=docker.service
+Requires=docker.service
+# NAS media mount must be active before this starts
+After=mnt-nas-media.mount
+RequiresMountsFor=/mnt/nas/media
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/tapec
+ExecStart=/usr/bin/docker compose up -d --build
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

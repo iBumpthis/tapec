@@ -112,3 +112,11 @@ video {
     align-items: center;
     flex-wrap: wrap;
 }
+
+.app-footer {
+  margin-top: 2rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  color: #666;
+  border-top: 1px solid #333;
+}
