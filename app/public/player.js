@@ -1,4 +1,7 @@
-console.log("TapeC player.js v0.2.1-dev", new Date().toISOString());
+fetch("/api/health")
+  .then(r => r.json())
+  .then(d => console.log("TapeC player.js", d.version, new Date().toISOString()))
+  .catch(() => console.log("TapeC player.js [version unknown]", new Date().toISOString()));
 
 const params = new URLSearchParams(location.search);
 const id = params.get("id");
@@ -14,6 +17,25 @@ const elSaveBtn = document.getElementById("saveBtn");
 const elSaveStatus = document.getElementById("saveStatus");
 
 let markers = [];
+
+// Parse display fields from filename convention: "{ARTIST} - {TRACK} ({YEAR}).ext"
+// Returns { artist, title, year } — all fields optional/null if not parseable.
+function parseFilename(filename) {
+  const base = filename.replace(/\.[^.]+$/, "");
+  let year = null;
+  const yearMatch = base.match(/\((\d{4})\)/);
+  if (yearMatch) year = yearMatch[1];
+  const stripped = base.replace(/\([^)]*\)/g, "").trim();
+  const dashIdx = stripped.indexOf(" - ");
+  if (dashIdx !== -1) {
+    return {
+      artist: stripped.slice(0, dashIdx).trim(),
+      title: stripped.slice(dashIdx + 3).trim(),
+      year
+    };
+  }
+  return { artist: null, title: stripped || filename, year };
+}
 
 function fmtTime(sec) {
   sec = Math.max(0, Math.floor(sec));
@@ -77,8 +99,11 @@ async function load() {
     return;
   }
 
-  elTitle.textContent = current.filename;
-  elSub.textContent = `${current.libName} • ${current.relPath}`;
+  const { artist, title, year } = parseFilename(current.filename);
+  const yearPartTitle = year ? ` - ${year}` : "";
+  elTitle.textContent = artist ? `${artist} - ${title}${yearPartTitle}` : title;
+  const yearPart = year ? `${year} • ` : "";
+  elSub.textContent = `${yearPart}${current.libName} • ${current.relPath}`;
 
   elPlayer.src = current.streamUrl;
 
@@ -146,3 +171,88 @@ if (elImportMarkersBtn && elMarkerText) {
 if (elSaveBtn) elSaveBtn.addEventListener("click", save);
 
 load();
+// --- Browse overlay ---
+const elBrowseBtn = document.getElementById("browseBtn");
+document.getElementById("backBtn").addEventListener("click", () => {
+  window.location.href = "/";
+});
+const elBrowseOverlay = document.getElementById("browseOverlay");
+const elBrowseClose = document.getElementById("browseClose");
+const elBrowseBackdrop = document.getElementById("browseBackdrop");
+const elBrowseLib = document.getElementById("browseLib");
+const elBrowseQ = document.getElementById("browseQ");
+const elBrowseList = document.getElementById("browseList");
+
+let browseLibraries = [];
+let browseDebounce = null;
+
+function openBrowse() {
+  elBrowseOverlay.classList.remove("hidden");
+  elBrowseQ.focus();
+  if (browseLibraries.length === 0) loadBrowse();
+}
+
+function closeBrowse() {
+  elBrowseOverlay.classList.add("hidden");
+}
+
+async function loadBrowse() {
+  const lib = elBrowseLib.value || "";
+  const q = elBrowseQ.value.trim();
+
+  const url = new URL("/api/library", location.origin);
+  if (lib) url.searchParams.set("lib", lib);
+  if (q) url.searchParams.set("q", q);
+
+  const res = await fetch(url);
+  const data = await res.json();
+
+  // Populate library selector once
+  if (browseLibraries.length === 0) {
+    browseLibraries = data.libraries ?? [];
+    const optAll = document.createElement("option");
+    optAll.value = "";
+    optAll.textContent = "All libraries";
+    elBrowseLib.appendChild(optAll);
+    for (const name of browseLibraries) {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      elBrowseLib.appendChild(opt);
+    }
+  }
+
+  elBrowseList.innerHTML = "";
+  for (const it of data.items) {
+    const { artist, title, year } = parseFilename(it.filename);
+    const div = document.createElement("div");
+    div.className = "browse-item" + (String(it.id) === String(id) ? " browse-item-current" : "");
+
+    const label = document.createElement("div");
+    label.className = "browse-item-title";
+    label.textContent = artist ? `${artist} - ${title}` : title;
+
+    const meta = document.createElement("div");
+    meta.className = "small";
+    const yearPart = year ? `${year} • ` : "";
+    meta.textContent = `${yearPart}${it.libName} • ${it.ext.toUpperCase()}`;
+
+    div.appendChild(label);
+    div.appendChild(meta);
+
+    div.addEventListener("click", () => {
+      window.location.href = `/player.html?id=${encodeURIComponent(it.id)}`;
+    });
+
+    elBrowseList.appendChild(div);
+  }
+}
+
+elBrowseBtn.addEventListener("click", openBrowse);
+elBrowseClose.addEventListener("click", closeBrowse);
+elBrowseBackdrop.addEventListener("click", closeBrowse);
+elBrowseLib.addEventListener("change", loadBrowse);
+elBrowseQ.addEventListener("input", () => {
+  clearTimeout(browseDebounce);
+  browseDebounce = setTimeout(loadBrowse, 250);
+});
