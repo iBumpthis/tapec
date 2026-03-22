@@ -8,7 +8,7 @@ function loadConfig() {
   );
 }
 
-function walkDir(rootAbs, onFile) {
+export function walkDir(rootAbs, onFile) {
   const stack = [rootAbs];
 
   while (stack.length) {
@@ -33,7 +33,7 @@ function walkDir(rootAbs, onFile) {
   }
 }
 
-function toRelPath(rootAbs, absPath) {
+export function toRelPath(rootAbs, absPath) {
   return path.relative(rootAbs, absPath).split(path.sep).join("/");
 }
 

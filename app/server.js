@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import { openDb, upsertMedia } from "./db.js";
+import { walkDir, toRelPath } from "./scan.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("./package.json");
@@ -139,28 +140,6 @@ function sendRangeStream(reply, absPath, mime) {
     .header("Content-Type", mime);
 
   return reply.send(fs.createReadStream(absPath, { start, end: safeEnd }));
-}
-
-function walkDir(rootAbs, onFile) {
-  const stack = [rootAbs];
-  while (stack.length) {
-    const cur = stack.pop();
-    let entries;
-    try {
-      entries = fs.readdirSync(cur, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const ent of entries) {
-      const abs = path.join(cur, ent.name);
-      if (ent.isDirectory()) stack.push(abs);
-      else if (ent.isFile()) onFile(abs);
-    }
-  }
-}
-
-function toRelPath(rootAbs, absPath) {
-  return path.relative(rootAbs, absPath).split(path.sep).join("/");
 }
 
 function normalizeDashes(s) {
@@ -513,7 +492,11 @@ app.post("/api/media/:id/meta", async (req, reply) => {
 
   // Clean markers for sidecar
   const cleanMarkers = incomingMarkers
-    .map(m => ({ t: Number(m.t), label: String(m.label ?? "").trim() }))
+    .map(m => ({
+      t: Number(m.t),
+      label: String(m.label ?? "").trim(),
+      ...(m.endSeconds != null ? { endSeconds: Number(m.endSeconds) } : {})
+    }))
     .filter(m => Number.isFinite(m.t) && m.t >= 0 && m.label.length > 0)
     .sort((a, b) => a.t - b.t);
 
@@ -609,39 +592,6 @@ app.post("/api/media/:id/meta", async (req, reply) => {
 
   // Health
   app.get("/api/health", async () => ({ ok: true, name: "TapeC", version }));
-
-  // Debug (temporary)
-  app.get("/api/debug/exists/:id", async (req, reply) => {
-    const id = Number(req.params.id);
-    const row = db.prepare(`SELECT id, absPath, ext, libName, relPath FROM media WHERE id = ?`).get(id);
-    if (!row) return reply.code(404).send({ ok: false, error: "No DB row for id" });
-
-    let exists = false;
-    let stat = null;
-    let statErr = null;
-
-    try {
-      exists = fs.existsSync(row.absPath);
-      if (exists) {
-        const s = fs.statSync(row.absPath);
-        stat = { size: s.size, mtimeMs: s.mtimeMs, isFile: s.isFile() };
-      }
-    } catch (e) {
-      statErr = String(e?.message ?? e);
-    }
-
-    return reply.send({
-      ok: true,
-      id: row.id,
-      absPath: row.absPath,
-      exists,
-      stat,
-      statErr,
-      metaPath: metaPathForRow(cfg, row),
-      whoami: process.env.USERNAME,
-      cwd: process.cwd()
-    });
-  });
 
   // Listen (must be after routes)
   await app.listen({ port: cfg.port, host: cfg.host });
