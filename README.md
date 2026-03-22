@@ -13,7 +13,7 @@ sets, albums with cue points, etc.).
 
 ## Status
 
-**v0.3.0 stable**
+**v0.4.0 stable**
 
 This repository represents a working baseline:
 
@@ -23,6 +23,7 @@ This repository represents a working baseline:
 -   Player page
 -   Track Marker Import (v0.2 format)
 -   Stable server lifecycle
+-   Marker syncing during video playback
 
 ------------------------------------------------------------------------
 
@@ -298,11 +299,20 @@ Why separate metadata storage:
 
 ## Last Significant Change(s)
 
-v0.3.0
+v0.4.0 [2026-03-22]
+-   Track markers functionality and layout rework
+    -   Track markers now timestamp and highlight during playback
+    -   Added collapsible functionality to panel track markers
+    -   Added below video scroll track markers (maintains when right panel collapsed)
+    -   Relaignment of `player.js` page information to support upcoming layout and metadata overhaul
+
+v0.3.0 [2026-03-22]
 -   Security/Dependencies Upgrades
     -   Updated `fastify` version to current
     -   Updated `better-sqlite3` version to current
     -   Removed API debug endpoint for early builds that could expose data locally
+    -   Highlighted independently from v0.4.0 updates to note dependency changes
+    -   Depending on deployment, `npm rebuild` may be required
 
 v0.2.5 [2026-03-21]
 -   Track / Filename Parsing Update
