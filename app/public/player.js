@@ -106,11 +106,22 @@ async function load() {
   elSub.textContent = `${yearPart}${current.libName} • ${current.relPath}`;
 
   elPlayer.src = current.streamUrl;
+  elPlayer.addEventListener("loadedmetadata", syncMarkersHeight, { once: true });
 
   markers = Array.isArray(current.meta?.markers) ? current.meta.markers : [];
   elNotes.value = current.meta?.notes ?? "";
+  lastActiveIdx = -1;
 
   renderMarkers();
+
+  // Pre-render strip on load if markers exist
+  if (markers.length > 0) {
+    if (markers[0].t === 0) {
+      updateNowPlaying(0);
+    } else {
+      renderPreparedState();
+    }
+  }
 }
 
 async function save() {
@@ -169,6 +180,120 @@ if (elImportMarkersBtn && elMarkerText) {
 }
 
 if (elSaveBtn) elSaveBtn.addEventListener("click", save);
+
+// --- Markers panel: height sync to video ---
+const elMarkersScroll = document.getElementById("markers-scroll");
+const elMarkersToggle = document.getElementById("markersToggle");
+let markersCollapsed = false;
+
+function syncMarkersHeight() {
+  if (markersCollapsed) return;
+  const videoHeight = elPlayer.getBoundingClientRect().height;
+  if (videoHeight > 0) {
+    elMarkersScroll.style.maxHeight = videoHeight + "px";
+  }
+}
+
+const resizeObserver = new ResizeObserver(() => syncMarkersHeight());
+resizeObserver.observe(elPlayer);
+window.addEventListener("resize", syncMarkersHeight);
+
+// --- Markers panel: collapse toggle ---
+elMarkersToggle.addEventListener("click", () => {
+  markersCollapsed = !markersCollapsed;
+  elMarkersScroll.classList.toggle("collapsed", markersCollapsed);
+  document.getElementById("markersHeader").classList.toggle("collapsed", markersCollapsed);
+  elMarkersToggle.textContent = markersCollapsed ? "tracks" : "collapse";
+  const panelW = markersCollapsed ? "0px" : "320px";
+  const topbarW = markersCollapsed ? "80px" : "320px";
+  const gap = markersCollapsed ? "0" : "";
+  document.querySelector(".panel").style.setProperty("--markers-width", panelW);
+  document.querySelector(".markers-topbar").style.setProperty("--markers-width", topbarW);
+  document.querySelector(".panel").style.gap = gap;
+  document.querySelector(".markers-topbar").style.gap = gap;
+  if (!markersCollapsed) setTimeout(syncMarkersHeight, 260);
+});
+
+// --- Now playing strip + active marker highlight ---
+const elNowPlayingStrip = document.getElementById("nowPlayingStrip");
+const elNpPrev = document.getElementById("npPrev");
+const elNpCurrent = document.getElementById("npCurrent");
+const elNpNext = document.getElementById("npNext");
+let lastActiveIdx = -1;
+
+function getActiveMarkerIdx(currentTime) {
+  if (!markers.length) return -1;
+  let idx = -1;
+  for (let i = 0; i < markers.length; i++) {
+    if (markers[i].t <= currentTime) idx = i;
+    else break;
+  }
+  return idx;
+}
+
+function renderPreparedState() {
+  // Show strip with first marker centered (full size, muted color), no left pill
+  elNowPlayingStrip.classList.remove("hidden");
+  elNpPrev.style.display = "none";
+  elNpPrev.onclick = null;
+
+  elNpCurrent.classList.add("np-current", "prepared");
+  elNpCurrent.classList.remove("np-adjacent");
+  elNpCurrent.textContent = `${fmtTime(markers[0].t)} ${markers[0].label}`;
+  elNpCurrent.onclick = () => { elPlayer.currentTime = markers[0].t; elPlayer.play(); };
+
+  const next = markers.length > 1 ? markers[1] : null;
+  elNpNext.textContent = next ? `${fmtTime(next.t)} ${next.label}` : "";
+  elNpNext.style.display = next ? "" : "none";
+  elNpNext.onclick = next ? () => { elPlayer.currentTime = next.t; elPlayer.play(); } : null;
+}
+
+function updateNowPlaying(idx) {
+  if (idx === lastActiveIdx) return;
+  lastActiveIdx = idx;
+
+  // Update active class on marker list items
+  const markerEls = elMarkers.querySelectorAll(".marker");
+  markerEls.forEach((el, i) => {
+    el.classList.toggle("active", i === idx);
+  });
+
+  // idx -1 means before first marker — show prepared state if markers exist
+  if (idx === -1) {
+    if (markers.length > 0) {
+      renderPreparedState();
+    } else {
+      elNowPlayingStrip.classList.add("hidden");
+    }
+    return;
+  }
+
+  elNowPlayingStrip.classList.remove("hidden");
+
+  // Restore current pill styling in case pre-load prepared state changed it
+  elNpCurrent.classList.add("np-current");
+  elNpCurrent.classList.remove("np-adjacent", "prepared");
+
+  const prev = idx > 0 ? markers[idx - 1] : null;
+  const current = markers[idx];
+  const next = idx < markers.length - 1 ? markers[idx + 1] : null;
+
+  elNpPrev.textContent = prev ? `${fmtTime(prev.t)} ${prev.label}` : "";
+  elNpPrev.style.display = prev ? "" : "none";
+  elNpPrev.onclick = prev ? () => { elPlayer.currentTime = prev.t; elPlayer.play(); } : null;
+
+  elNpCurrent.textContent = `${fmtTime(current.t)} ${current.label}`;
+  elNpCurrent.onclick = () => { elPlayer.currentTime = current.t; elPlayer.play(); };
+
+  elNpNext.textContent = next ? `${fmtTime(next.t)} ${next.label}` : "";
+  elNpNext.style.display = next ? "" : "none";
+  elNpNext.onclick = next ? () => { elPlayer.currentTime = next.t; elPlayer.play(); } : null;
+}
+
+elPlayer.addEventListener("timeupdate", () => {
+  const idx = getActiveMarkerIdx(elPlayer.currentTime);
+  updateNowPlaying(idx);
+});
 
 load();
 // --- Browse overlay ---

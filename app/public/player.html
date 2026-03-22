@@ -13,8 +13,13 @@
     <button id="backBtn">Back to Library</button>
     <button id="browseBtn">Browse Library</button>
   </div>
-  <h1 id="title">TapeC Player</h1>
-  <div class="small" id="sub"></div>
+  <div class="markers-topbar">
+    <div class="markers-topbar-left"><!-- spacer --></div>
+    <div class="markers-header" id="markersHeader">
+      <h3>Track Markers</h3>
+      <button class="markers-toggle" id="markersToggle">collapse</button>
+    </div>
+  </div>
 
   <!-- Browse overlay -->
   <div id="browseOverlay" class="browse-overlay hidden">
@@ -37,6 +42,19 @@
     <div>
       <video id="player" controls playsinline></video>
 
+      <!-- Now playing strip -->
+      <div class="now-playing-strip hidden" id="nowPlayingStrip">
+        <div class="np-pill np-adjacent" id="npPrev"></div>
+        <div class="np-pill np-current" id="npCurrent"></div>
+        <div class="np-pill np-adjacent" id="npNext"></div>
+      </div>
+
+      <!-- Title + breadcrumb, shown below video -->
+      <div class="video-meta">
+        <h1 id="title">TapeC Player</h1>
+        <div class="small" id="sub"></div>
+      </div>
+
       <div class="row">
         <h3>Notes/Description</h3>
         <textarea id="notes" placeholder="Notes..."></textarea>
@@ -58,9 +76,10 @@
     </div>
 
     <!-- RIGHT: markers list -->
-    <div>
-      <h3>Track Markers</h3>
-      <div id="markers"></div>
+    <div id="markersPanel">
+      <div id="markers-scroll">
+        <div id="markers"></div>
+      </div>
     </div>
   </div>
 
