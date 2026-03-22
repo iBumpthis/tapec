@@ -13,7 +13,7 @@ sets, albums with cue points, etc.).
 
 ## Status
 
-**v0.2.5 stable**
+**v0.3.0 stable**
 
 This repository represents a working baseline:
 
@@ -297,6 +297,12 @@ Why separate metadata storage:
 ------------------------------------------------------------------------
 
 ## Last Significant Change(s)
+
+v0.3.0
+-   Security/Dependencies Upgrades
+    -   Updated `fastify` version to current
+    -   Updated `better-sqlite3` version to current
+    -   Removed API debug endpoint for early builds that could expose data locally
 
 v0.2.5 [2026-03-21]
 -   Track / Filename Parsing Update
