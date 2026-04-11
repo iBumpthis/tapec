@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TapeC - Version History</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body>
+  <h1>Published Version History</h1>
+    <div>
+        <h2>(Current) Version 0.5.3 | Tibetan Blue | Visualizer</h2>
+            <h3>0.5.0 - 0.5.X</h3>
+            <h3>Implemented</h3>
+                <ul>
+                    <li>Visualizer Functionality Added</li>
+                    <li>Visualizer Color Options Added</li>
+                    <li>Playback Mode Toggle (Video, Audio, Visualizer)</li>
+                    <li>Default Settings for Playback Mode by Filetype (Configurable in Config File)</li>
+                    <li>Custom Player Controls Overlay and Unification</li>
+                </ul>
+            <h3>Pending Deployment</h3>
+                <ul>
+                    <li>Additional Visualizer Options</li>
+                    <li>Player Frame/Visualization Enhancements</li>
+                    <li>Visualization Bug Fixes</li>
+                    <li>Visual Toggle Realignment to Core Player/Markers</li>
+                    <li>Collapsible UI Toggles for Notes/Description and Import Tracks</li>
+                    <li>Pre-Phase Groundwork for Metadata Overhaul</li>
+                </ul>
+    </div>
+    <hr>
+    <h1>Roadmap</h1>
+        <div>
+            Subject to change, but planned development path
+        </div>
+        <div>
+            <h2>Version 0.6.X | Polar</h2>
+                <h3>Schema, Tags, and Metadata Overhaul/DB Migration</h3>
+            <h2>Version 0.7.X | American Brown</h2>
+                <h3>Metadata Editing UX</h3>
+            <h2>Version 0.8.X | Tibetan Blue</h2>
+                <h3>Network/Reverse Proxy Deployment, Local DNS, Filetype Support Enrichment</h3>
+            <h2>Version 0.9.X | Red Panda</h2>
+                <h3>Placeholder for Feature Adds/Scope Creep</h3>
+            <h2>Version 1.0.X | Grizzly</h2>
+                <h3>Baseline Stable / Complete First Roadmap</h3>
+        </div>
+    <hr>        
+    <h1>Deployment History</h1>
+        <div>
+                <div>
+        <h2>Version 0.4.X | European Brown | Track Marker Functionality</h2>
+            <h3>0.4.0 - 0.4.4</h3>
+                <ul>
+                    <li>Track Marker Usage/Functionality Added</li>
+                    <li>Track Marker Playback Anchor Functionality Updated</li>
+                    <li>Track Marker Visualization Updated</li>
+                    <li>Track Marker Container Rework/Collapse Added</li>
+                    <li>Horizontal Scroll Track Marker/Auto Tracking Added</li>
+                    <li>Library Browse from Player Added</li>
+                    <li>Initial Framework for Upcoming Metadata Overhaul</li>
+                </ul>
+        <h2>Version 0.3.X | Kamchatka | Backend Audit/Updates and Deployment Methodology</h2>
+            <h3>0.3.0 - 0.3.3</h3>
+                <ul>
+                    <li>Core back-end dependency audit</li>
+                    <li>Updates to fastify, sqlite3</li>
+                    <li>Updates/cleanup of independent APIs</li>
+                    <li>General security audit/updates</li>
+                    <li>Additional deployment model updates/streamlines (Standalone, Windows Service, Linux Service, Docker)</li>
+                </ul>
+        <h2>Version 0.2.X | American Black | First Core Features Deployed</h2>
+            <h3>0.2.0 - 0.2.3</h3>
+                <ul>
+                    <li>Docker/Linux Service Deployment Framework Added</li>
+                    <li>HTML and CSS Core Deployment</li>     
+                    <li>Track Import framework added</li>
+                    <li>v1 Metadata save logic added</li>
+                    <li>NSSM/Windows Service Framework Deployment</li>
+                    <li>Library scan/import added</li>
+                    <li>Functional use framework</li>
+                    <li>Removal of hardcoded file dependencies, addition of media libraries</li>
+                </ul>     
+            <h2>Version 0.1.X | Sun | Initial Framework</h2>
+            <h3>0.1.0</h3>
+                <ul>
+                    <li>Internal only framework version</li>
+                    <li>Basic player addition</li>
+                </ul>
+        </div>
+  <footer class="app-footer">
+    TapeC <span id="app-version">—</span> | <a href="index.html">Home</a> | <a href="history.html">Version History</a>
+  </footer>
+  <script>
+    fetch("/api/health")
+      .then(r => r.json())
+      .then(d => { document.getElementById("app-version").textContent = d.version ?? ""; })
+      .catch(() => {});
+  </script>
+</body>
+
+</html>
