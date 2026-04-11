@@ -2,8 +2,13 @@
   "libraries": [
     { "name": "Music", "path": "\\\\SERVER\\SHARE\\Music" }
   ],
-  "dbPath": "C:\\TapeC\\tapec.sqlite",
-  "host": "0.0.0.0",
+  "dbPath": "C:\\TapeC\\tapec.sqlite",     
+  "metaRoot": "C:\\tapec-dev\\tapec\\app\\metadata",
   "port": 32410,
-  "allowedExtensions": ["mp3", "mp4", "m4a", "wav"]
+  "allowedExtensions": ["mp3", "mp4", "m4a", "wav"],
+  "defaultPlayback": {
+    "video": ["mp4"],
+    "audio": ["mp3", "wav", "m4a"],
+    "visualizer": []
+  }
 }

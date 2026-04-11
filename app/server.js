@@ -10,33 +10,30 @@ const require = createRequire(import.meta.url);
 const { version } = require("./package.json");
 
 function loadConfig() {
-  const defaultConfig = {
-    libraries: [],
-    dbPath: "C:\\TapeC\\tapec.sqlite",
-    metaRoot: "C:\\ProgramData\\TapeC\\metadata",
-    host: "0.0.0.0",
-    port: 32410,
-    allowedExtensions: ["mp3", "mp4", "m4a", "wav"]
-  };
-
-  let fileConfig = {};
+  let fileConfig;
 
   try {
     fileConfig = JSON.parse(
       fs.readFileSync(new URL("./config.json", import.meta.url), "utf8")
     );
   } catch (err) {
-    console.warn("config.json not found or invalid, using defaults.");
+    console.error("config.json not found or invalid — TapeC cannot start without it.");
+    process.exit(1);
   }
 
-  return {
-    ...defaultConfig,
+  const cfg = {
     ...fileConfig,
-    host: process.env.TAPEC_HOST ?? fileConfig.host ?? defaultConfig.host,
-    port: Number(process.env.TAPEC_PORT ?? fileConfig.port ?? defaultConfig.port),
-    dbPath: process.env.TAPEC_DB_PATH ?? fileConfig.dbPath ?? defaultConfig.dbPath,
-    metaRoot: process.env.TAPEC_META_ROOT ?? fileConfig.metaRoot ?? defaultConfig.metaRoot
+    host: process.env.TAPEC_HOST ?? fileConfig.host ?? "0.0.0.0",
+    port: Number(process.env.TAPEC_PORT ?? fileConfig.port ?? 32410),
+    dbPath: process.env.TAPEC_DB_PATH ?? fileConfig.dbPath,
+    metaRoot: process.env.TAPEC_META_ROOT ?? fileConfig.metaRoot,
   };
+
+  if (!cfg.defaultPlayback || typeof cfg.defaultPlayback !== "object") {
+    cfg.defaultPlayback = { video: [], audio: [], visualizer: [] };
+  }
+
+  return cfg;
 }
 
 function sanitizePathPart(s) {
@@ -322,6 +319,16 @@ async function main() {
 
   const app = Fastify({ logger: true });
 
+  // Resolves Default Playback Mode
+  function resolveDefaultMode(cfg, ext) {
+    const pb = cfg.defaultPlayback;
+    if (pb.visualizer?.includes(ext)) return "visualizer";
+    if (pb.audio?.includes(ext)) return "audio";
+    if (pb.video?.includes(ext)) return "video";
+    // Fallback: if ext not listed anywhere, guess from mime
+    return ["mp3", "wav", "flac", "m4a", "ogg", "aac"].includes(ext) ? "audio" : "video";
+  }
+
   // Serve UI from ./public
   const publicRoot = path.resolve(process.cwd(), "public");
   app.register(fastifyStatic, { root: publicRoot, prefix: "/" });
@@ -365,7 +372,8 @@ async function main() {
       sizeBytes: row.sizeBytes,
       mtimeMs: row.mtimeMs,
       streamUrl: `/stream/${row.id}`,
-      meta
+      meta,
+      defaultMode: resolveDefaultMode(cfg, row.ext)   // <-- NEW
     });
   });
 
@@ -384,201 +392,201 @@ async function main() {
     }
   });
 
-// Save meta sidecar + write markers to DB
-app.post("/api/media/:id/meta", async (req, reply) => {
-  const id = Number(req.params.id);
-  const row = db.prepare(`SELECT * FROM media WHERE id = ?`).get(id);
-  if (!row) return reply.code(404).send({ error: "Not found" });
+  // Save meta sidecar + write markers to DB
+  app.post("/api/media/:id/meta", async (req, reply) => {
+    const id = Number(req.params.id);
+    const row = db.prepare(`SELECT * FROM media WHERE id = ?`).get(id);
+    if (!row) return reply.code(404).send({ error: "Not found" });
 
-  const body = req.body ?? {};
+    const body = req.body ?? {};
 
-  const hasMarkerText =
-    typeof body.markerText === "string" && body.markerText.trim().length > 0;
-  const hasMarkersArray =
-    Array.isArray(body.markers) && body.markers.length > 0;
+    const hasMarkerText =
+      typeof body.markerText === "string" && body.markerText.trim().length > 0;
+    const hasMarkersArray =
+      Array.isArray(body.markers) && body.markers.length > 0;
 
-  // NOTES-ONLY UPDATE: if client didn't send markers at all, preserve existing markers
-  if (!hasMarkerText && !hasMarkersArray) {
-    try {
-      const existing = readMeta(cfg, row);
+    // NOTES-ONLY UPDATE: if client didn't send markers at all, preserve existing markers
+    if (!hasMarkerText && !hasMarkersArray) {
+      try {
+        const existing = readMeta(cfg, row);
 
-      const next = {
-        ...existing,
-        title: body.title ?? existing.title,
-        creator: body.creator ?? existing.creator,
-        notes: typeof body.notes === "string" ? body.notes : (existing.notes ?? ""),
-        markers: Array.isArray(existing.markers) ? existing.markers : []
+        const next = {
+          ...existing,
+          title: body.title ?? existing.title,
+          creator: body.creator ?? existing.creator,
+          notes: typeof body.notes === "string" ? body.notes : (existing.notes ?? ""),
+          markers: Array.isArray(existing.markers) ? existing.markers : []
+        };
+
+        app.log.info(
+          { id: row.id, preservedCount: next.markers.length },
+          "notes-only save (preserving markers)"
+        );
+
+        writeMeta(cfg, row, next);
+
+        return reply.send({
+          ok: true,
+          preservedMarkers: true,
+          saved: {
+            markerCount: next.markers.length,
+            metaPath: metaPathForRow(cfg, row)
+          }
+        });
+      } catch (e) {
+        req.log.error({ err: e }, "notes-only meta save failed");
+        return reply.code(500).send({
+          ok: false,
+          error: `Notes-only save failed: ${e?.message ?? String(e)}`
+        });
+      }
+    }
+
+    // v0.2: accept either structured markers[] OR markerText paste block
+    let incomingMarkers = [];
+    let importErrors = [];
+
+    if (hasMarkerText) {
+      const { parsed, errors } = parseMarkerBlock(body.markerText);
+      importErrors = errors;
+
+      incomingMarkers = parsed.map(m => ({
+        t: m.startSeconds,
+        label: m.title,
+        endSeconds: m.endSeconds ?? null,
+        rawLine: m.rawLine,
+        wasAdjusted: m.wasAdjusted ?? 0,
+        adjustReason: m.adjustReason ?? null
+      }));
+    } else {
+      const markers = Array.isArray(body.markers) ? body.markers : [];
+
+      const getNum = (m, keys) => {
+        for (const k of keys) {
+          if (m && m[k] != null && m[k] !== "") {
+            const n = Number(m[k]);
+            if (Number.isFinite(n)) return n;
+          }
+        }
+        return NaN;
       };
 
-      app.log.info(
-        { id: row.id, preservedCount: next.markers.length },
-        "notes-only save (preserving markers)"
-      );
-
-      writeMeta(cfg, row, next);
-
-      return reply.send({
-        ok: true,
-        preservedMarkers: true,
-        saved: {
-          markerCount: next.markers.length,
-          metaPath: metaPathForRow(cfg, row)
+      const getStr = (m, keys) => {
+        for (const k of keys) {
+          if (m && m[k] != null) {
+            const s = String(m[k]).trim();
+            if (s) return s;
+          }
         }
-      });
-    } catch (e) {
-      req.log.error({ err: e }, "notes-only meta save failed");
-      return reply.code(500).send({
-        ok: false,
-        error: `Notes-only save failed: ${e?.message ?? String(e)}`
-      });
+        return "";
+      };
+
+      incomingMarkers = markers
+        .map(m => {
+          const t = getNum(m, ["t", "time", "start", "startSeconds", "startSec"]);
+          const end = getNum(m, ["endSeconds", "end", "stop"]);
+          return {
+            t,
+            label: getStr(m, ["label", "title", "name"]),
+            endSeconds: Number.isFinite(end) ? end : null,
+            rawLine: m?.rawLine ?? null,
+            wasAdjusted: m?.wasAdjusted ? 1 : 0,
+            adjustReason: m?.adjustReason ?? null
+          };
+        })
+        .filter(m => Number.isFinite(m.t) && m.t >= 0 && m.label.length > 0)
+        .sort((a, b) => a.t - b.t);
     }
-  }
 
-  // v0.2: accept either structured markers[] OR markerText paste block
-  let incomingMarkers = [];
-  let importErrors = [];
-
-  if (hasMarkerText) {
-    const { parsed, errors } = parseMarkerBlock(body.markerText);
-    importErrors = errors;
-
-    incomingMarkers = parsed.map(m => ({
-      t: m.startSeconds,
-      label: m.title,
-      endSeconds: m.endSeconds ?? null,
-      rawLine: m.rawLine,
-      wasAdjusted: m.wasAdjusted ?? 0,
-      adjustReason: m.adjustReason ?? null
-    }));
-  } else {
-    const markers = Array.isArray(body.markers) ? body.markers : [];
-
-    const getNum = (m, keys) => {
-      for (const k of keys) {
-        if (m && m[k] != null && m[k] !== "") {
-          const n = Number(m[k]);
-          if (Number.isFinite(n)) return n;
-        }
-      }
-      return NaN;
-    };
-
-    const getStr = (m, keys) => {
-      for (const k of keys) {
-        if (m && m[k] != null) {
-          const s = String(m[k]).trim();
-          if (s) return s;
-        }
-      }
-      return "";
-    };
-
-    incomingMarkers = markers
-      .map(m => {
-        const t = getNum(m, ["t", "time", "start", "startSeconds", "startSec"]);
-        const end = getNum(m, ["endSeconds", "end", "stop"]);
-        return {
-          t,
-          label: getStr(m, ["label", "title", "name"]),
-          endSeconds: Number.isFinite(end) ? end : null,
-          rawLine: m?.rawLine ?? null,
-          wasAdjusted: m?.wasAdjusted ? 1 : 0,
-          adjustReason: m?.adjustReason ?? null
-        };
-      })
+    // Clean markers for sidecar
+    const cleanMarkers = incomingMarkers
+      .map(m => ({
+        t: Number(m.t),
+        label: String(m.label ?? "").trim(),
+        ...(m.endSeconds != null ? { endSeconds: Number(m.endSeconds) } : {})
+      }))
       .filter(m => Number.isFinite(m.t) && m.t >= 0 && m.label.length > 0)
       .sort((a, b) => a.t - b.t);
-  }
 
-  // Clean markers for sidecar
-  const cleanMarkers = incomingMarkers
-    .map(m => ({
-      t: Number(m.t),
-      label: String(m.label ?? "").trim(),
-      ...(m.endSeconds != null ? { endSeconds: Number(m.endSeconds) } : {})
-    }))
-    .filter(m => Number.isFinite(m.t) && m.t >= 0 && m.label.length > 0)
-    .sort((a, b) => a.t - b.t);
+    // Guard: pasted markerText but parsed 0 markers => don't write empty file
+    if (hasMarkerText && cleanMarkers.length === 0) {
+      return reply.code(400).send({
+        ok: false,
+        error: "Marker import produced 0 markers. Metadata was not written.",
+        importErrors
+      });
+    }
 
-  // Guard: pasted markerText but parsed 0 markers => don't write empty file
-  if (hasMarkerText && cleanMarkers.length === 0) {
-    return reply.code(400).send({
-      ok: false,
-      error: "Marker import produced 0 markers. Metadata was not written.",
-      importErrors
-    });
-  }
+    // Guard: structured markers were provided but normalized to 0 markers
+    if (!hasMarkerText && hasMarkersArray && cleanMarkers.length === 0) {
+      return reply.code(400).send({
+        ok: false,
+        error: "Structured markers were provided but normalized to 0 valid markers. Metadata was not written.",
+        hint: "Check marker object keys (t/time/startSeconds and label/title)."
+      });
+    }
 
-  // Guard: structured markers were provided but normalized to 0 markers
-  if (!hasMarkerText && hasMarkersArray && cleanMarkers.length === 0) {
-    return reply.code(400).send({
-      ok: false,
-      error: "Structured markers were provided but normalized to 0 valid markers. Metadata was not written.",
-      hint: "Check marker object keys (t/time/startSeconds and label/title)."
-    });
-  }
+    // Write local sidecar
+    try {
+      app.log.info({
+        id: row.id,
+        hasMarkerText,
+        rawBodyMarkerCount: Array.isArray(body.markers) ? body.markers.length : null,
+        incomingCount: incomingMarkers.length,
+        cleanCount: cleanMarkers.length
+      }, "marker save counts");
 
-  // Write local sidecar
-  try {
-    app.log.info({
-      id: row.id,
-      hasMarkerText,
-      rawBodyMarkerCount: Array.isArray(body.markers) ? body.markers.length : null,
-      incomingCount: incomingMarkers.length,
-      cleanCount: cleanMarkers.length
-    }, "marker save counts");
+      writeMeta(cfg, row, {
+        title: body.title ?? undefined,
+        creator: body.creator ?? undefined,
+        notes: typeof body.notes === "string" ? body.notes : "",
+        markers: cleanMarkers
+      });
+    } catch (e) {
+      req.log.error({ err: e }, "writeMeta failed");
+      return reply.code(500).send({ error: `Failed to write meta: ${e?.message ?? String(e)}` });
+    }
 
-    writeMeta(cfg, row, {
-      title: body.title ?? undefined,
-      creator: body.creator ?? undefined,
-      notes: typeof body.notes === "string" ? body.notes : "",
-      markers: cleanMarkers
-    });
-  } catch (e) {
-    req.log.error({ err: e }, "writeMeta failed");
-    return reply.code(500).send({ error: `Failed to write meta: ${e?.message ?? String(e)}` });
-  }
-
-  // Write to SQLite markers table (v0.2)
-  try {
-    const del = db.prepare(`DELETE FROM markers WHERE mediaId = ?`);
-    const ins = db.prepare(`
+    // Write to SQLite markers table (v0.2)
+    try {
+      const del = db.prepare(`DELETE FROM markers WHERE mediaId = ?`);
+      const ins = db.prepare(`
       INSERT INTO markers (mediaId, startSeconds, endSeconds, title, rawLine, wasAdjusted, adjustReason, createdAtMs)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const tx = db.transaction((mediaId, list) => {
-      del.run(mediaId);
-      const now = Date.now();
-      for (const m of list) {
-        ins.run(
-          mediaId,
-          Number(m.t),
-          m.endSeconds == null ? null : Number(m.endSeconds),
-          String(m.label),
-          m.rawLine == null ? null : String(m.rawLine),
-          m.wasAdjusted ? 1 : 0,
-          m.adjustReason == null ? null : String(m.adjustReason),
-          now
-        );
+      const tx = db.transaction((mediaId, list) => {
+        del.run(mediaId);
+        const now = Date.now();
+        for (const m of list) {
+          ins.run(
+            mediaId,
+            Number(m.t),
+            m.endSeconds == null ? null : Number(m.endSeconds),
+            String(m.label),
+            m.rawLine == null ? null : String(m.rawLine),
+            m.wasAdjusted ? 1 : 0,
+            m.adjustReason == null ? null : String(m.adjustReason),
+            now
+          );
+        }
+      });
+
+      tx(row.id, incomingMarkers);
+    } catch (e) {
+      req.log.error({ err: e }, "DB marker write failed");
+      return reply.code(500).send({ error: `Failed to write markers to DB: ${e?.message ?? String(e)}` });
+    }
+
+    return reply.send({
+      ok: true,
+      importErrors,
+      saved: {
+        markerCount: cleanMarkers.length,
+        metaPath: metaPathForRow(cfg, row)
       }
     });
-
-    tx(row.id, incomingMarkers);
-  } catch (e) {
-    req.log.error({ err: e }, "DB marker write failed");
-    return reply.code(500).send({ error: `Failed to write markers to DB: ${e?.message ?? String(e)}` });
-  }
-
-  return reply.send({
-    ok: true,
-    importErrors,
-    saved: {
-      markerCount: cleanMarkers.length,
-      metaPath: metaPathForRow(cfg, row)
-    }
   });
-});
 
   // Scan (so UI button works)
   app.post("/api/scan", async (req, reply) => {

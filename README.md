@@ -13,7 +13,7 @@ sets, albums with cue points, etc.).
 
 ## Status
 
-**v0.4.0 stable**
+**v0.5.1 stable**
 
 This repository represents a working baseline:
 
@@ -24,6 +24,7 @@ This repository represents a working baseline:
 -   Track Marker Import (v0.2 format)
 -   Stable server lifecycle
 -   Marker syncing during video playback
+-   Playback mode toggles (Video, Audio Only, Visualizer)
 
 ------------------------------------------------------------------------
 
@@ -298,6 +299,12 @@ Why separate metadata storage:
 ------------------------------------------------------------------------
 
 ## Last Significant Change(s)
+
+v0.5.0 [2026-04-11]
+-   Playback visualization mode toggles added
+    -   Select from Video, Audio Only, or Visualizer
+-   Video playback controls styles added/unified across browsers
+-   Full screen mode added for all visual styles
 
 v0.4.0 [2026-03-22]
 -   Track markers functionality and layout rework

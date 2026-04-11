@@ -18,8 +18,343 @@ const elSaveStatus = document.getElementById("saveStatus");
 
 let markers = [];
 
-// Parse display fields from filename convention: "{ARTIST} - {TRACK} ({YEAR}).ext"
-// Returns { artist, title, year } — all fields optional/null if not parseable.
+// --- Playback mode state ---
+let currentMode = "video";
+let currentTheme = "rgb";
+let fileExt = "";
+
+const elPlaybackFrame = document.getElementById("playbackFrame");
+const elVizCanvas = document.getElementById("vizCanvas");
+const elPlaybackToolbar = document.getElementById("playbackToolbar");
+const elThemeSelector = document.getElementById("themeSelector");
+const elModeNotice = document.getElementById("modeNotice");
+const modeBtns = document.querySelectorAll(".mode-btn");
+const themeBtns = document.querySelectorAll(".theme-btn");
+
+// --- Custom controls ---
+const elCustomControls = document.getElementById("customControls");
+const elCcPlay = document.getElementById("ccPlay");
+const elCcPlayIcon = document.getElementById("ccPlayIcon");
+const elCcPauseIcon = document.getElementById("ccPauseIcon");
+const elCcSeek = document.getElementById("ccSeek");
+const elCcTimeCurrent = document.getElementById("ccTimeCurrent");
+const elCcTimeDuration = document.getElementById("ccTimeDuration");
+const elCcVolume = document.getElementById("ccVolume");
+const elCcFullscreen = document.getElementById("ccFullscreen");
+const elCcFsEnter = document.getElementById("ccFsEnter");
+const elCcFsExit = document.getElementById("ccFsExit");
+let isSeeking = false;
+
+// --- Web Audio API state (lazy init) ---
+let audioCtx = null;
+let analyser = null;
+let sourceNode = null;
+let vizAnimFrame = null;
+let freqData = null;
+
+const AUDIO_ONLY_EXTS = new Set(["mp3", "wav", "flac", "m4a", "ogg", "aac", "wma"]);
+
+// ============================================================
+// Custom control bar logic
+// ============================================================
+
+// Play/pause
+elCcPlay.addEventListener("click", () => {
+  if (elPlayer.paused) {
+    elPlayer.play();
+  } else {
+    elPlayer.pause();
+  }
+});
+
+// Click video to play/pause (video + visualizer modes)
+elPlayer.addEventListener("click", () => {
+  if (elPlayer.paused) {
+    elPlayer.play();
+  } else {
+    elPlayer.pause();
+  }
+});
+
+// Sync play/pause icon
+elPlayer.addEventListener("play", () => {
+  elCcPlayIcon.classList.add("hidden");
+  elCcPauseIcon.classList.remove("hidden");
+});
+elPlayer.addEventListener("pause", () => {
+  elCcPlayIcon.classList.remove("hidden");
+  elCcPauseIcon.classList.add("hidden");
+});
+
+// Seek bar — update from playback
+elPlayer.addEventListener("timeupdate", () => {
+  if (!isSeeking && elPlayer.duration) {
+    elCcSeek.value = (elPlayer.currentTime / elPlayer.duration) * 100;
+    elCcTimeCurrent.textContent = fmtTime(elPlayer.currentTime);
+  }
+});
+
+// Seek bar — user interaction
+elCcSeek.addEventListener("mousedown", () => { isSeeking = true; });
+elCcSeek.addEventListener("touchstart", () => { isSeeking = true; }, { passive: true });
+elCcSeek.addEventListener("input", () => {
+  if (elPlayer.duration) {
+    elCcTimeCurrent.textContent = fmtTime((elCcSeek.value / 100) * elPlayer.duration);
+  }
+});
+elCcSeek.addEventListener("change", () => {
+  if (elPlayer.duration) {
+    elPlayer.currentTime = (elCcSeek.value / 100) * elPlayer.duration;
+  }
+  isSeeking = false;
+});
+
+// Duration display
+elPlayer.addEventListener("loadedmetadata", () => {
+  elCcTimeDuration.textContent = fmtTime(elPlayer.duration);
+});
+
+// Volume
+elCcVolume.addEventListener("input", () => {
+  elPlayer.volume = Number(elCcVolume.value);
+});
+
+// Fullscreen
+elCcFullscreen.addEventListener("click", () => {
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else {
+    elPlaybackFrame.requestFullscreen().catch(err => {
+      console.warn("[TapeC] Fullscreen request failed:", err);
+    });
+  }
+});
+
+// Sync fullscreen icon
+document.addEventListener("fullscreenchange", () => {
+  const isFs = !!document.fullscreenElement;
+  elCcFsEnter.classList.toggle("hidden", isFs);
+  elCcFsExit.classList.toggle("hidden", !isFs);
+});
+
+// Fullscreen: show controls on mouse movement, hide after 3s idle
+let fsIdleTimer = null;
+
+elPlaybackFrame.addEventListener("mousemove", () => {
+  if (!document.fullscreenElement) return;
+  elCustomControls.classList.add("cc-visible");
+  clearTimeout(fsIdleTimer);
+  fsIdleTimer = setTimeout(() => {
+    elCustomControls.classList.remove("cc-visible");
+  }, 3000);
+});
+
+// Also show on any click (for play/pause), reset timer
+elPlaybackFrame.addEventListener("click", () => {
+  if (!document.fullscreenElement) return;
+  elCustomControls.classList.add("cc-visible");
+  clearTimeout(fsIdleTimer);
+  fsIdleTimer = setTimeout(() => {
+    elCustomControls.classList.remove("cc-visible");
+  }, 3000);
+});
+
+// Clean up on fullscreen exit
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement) {
+    clearTimeout(fsIdleTimer);
+    elCustomControls.classList.remove("cc-visible");
+  }
+});
+
+// ============================================================
+// Visualizer themes
+// ============================================================
+const VIZ_THEMES = {
+  muted: {
+    bg: "rgba(0, 0, 0, 0.92)",
+    barColor: (i, count, _t) => {
+      const pct = i / count;
+      const r = Math.round(120 + pct * 60);
+      const g = Math.round(130 + pct * 50);
+      const b = Math.round(145 + pct * 40);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+  },
+  colorful: {
+    bg: "rgba(0, 0, 0, 0.92)",
+    barColor: (i, count, _t) => {
+      const hue = (i / count) * 280 + 200;
+      return `hsl(${hue % 360}, 72%, 58%)`;
+    }
+  },
+  rgb: {
+    bg: "rgba(0, 0, 0, 0.95)",
+    barColor: (i, count, t) => {
+      const hue = ((i / count) * 360 + t * 40) % 360;
+      return `hsl(${hue}, 90%, 55%)`;
+    }
+  }
+};
+
+// ============================================================
+// Audio context + analyser (lazy, one-time setup)
+// ============================================================
+function ensureAudioContext() {
+  if (audioCtx && sourceNode) return true;
+
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.8;
+    freqData = new Uint8Array(analyser.frequencyBinCount);
+
+    sourceNode = audioCtx.createMediaElementSource(elPlayer);
+    sourceNode.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    return true;
+  } catch (e) {
+    console.error("[TapeC] AudioContext init failed:", e);
+    return false;
+  }
+}
+
+// ============================================================
+// Visualizer draw loop — mirrored from center
+// ============================================================
+function startVizLoop() {
+  if (vizAnimFrame) return;
+
+  const draw = () => {
+    vizAnimFrame = requestAnimationFrame(draw);
+
+    const canvas = elVizCanvas;
+    const ctx = canvas.getContext("2d");
+
+    const rect = canvas.getBoundingClientRect();
+    if (canvas.width !== rect.width || canvas.height !== rect.height) {
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+
+    const w = canvas.width;
+    const h = canvas.height;
+    const theme = VIZ_THEMES[currentTheme] || VIZ_THEMES.rgb;
+
+    ctx.fillStyle = theme.bg;
+    ctx.fillRect(0, 0, w, h);
+
+    analyser.getByteFrequencyData(freqData);
+
+    const t = performance.now() / 1000;
+    const usableBins = Math.floor(analyser.frequencyBinCount * 0.6);
+    const barWidth = w / (usableBins * 2);
+    const centerX = w / 2;
+
+    for (let i = 0; i < usableBins; i++) {
+      const val = freqData[i] / 255;
+      const barHeight = val * h * 0.9;
+
+      ctx.fillStyle = theme.barColor(i, usableBins, t);
+
+      const gap = Math.max(1, barWidth * 0.15);
+      const bw = barWidth - gap;
+
+      const xRight = centerX + i * barWidth;
+      ctx.fillRect(xRight + gap / 2, h - barHeight, bw, barHeight);
+
+      const xLeft = centerX - (i + 1) * barWidth;
+      ctx.fillRect(xLeft + gap / 2, h - barHeight, bw, barHeight);
+    }
+  };
+
+  draw();
+}
+
+function stopVizLoop() {
+  if (vizAnimFrame) {
+    cancelAnimationFrame(vizAnimFrame);
+    vizAnimFrame = null;
+  }
+}
+
+// ============================================================
+// Mode switching
+// ============================================================
+function setMode(mode) {
+  const prevMode = currentMode;
+  currentMode = mode;
+
+  modeBtns.forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.mode === mode);
+  });
+
+  elThemeSelector.classList.toggle("hidden", mode !== "visualizer");
+
+  elModeNotice.classList.add("hidden");
+  elModeNotice.textContent = "";
+
+  if (mode === "video") {
+    stopVizLoop();
+    elPlaybackFrame.classList.remove("mode-audio", "mode-visualizer");
+    elPlaybackFrame.classList.add("mode-video");
+
+    if (AUDIO_ONLY_EXTS.has(fileExt)) {
+      showNotice("Audio file — no video track available");
+    }
+
+  } else if (mode === "audio") {
+    stopVizLoop();
+    elPlaybackFrame.classList.remove("mode-video", "mode-visualizer");
+    elPlaybackFrame.classList.add("mode-audio");
+
+  } else if (mode === "visualizer") {
+    const ok = ensureAudioContext();
+    if (!ok) {
+      showNotice("Could not initialize audio — browser may not support Web Audio API");
+      currentMode = prevMode;
+      modeBtns.forEach(btn => btn.classList.toggle("active", btn.dataset.mode === prevMode));
+      return;
+    }
+
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+
+    elPlaybackFrame.classList.remove("mode-video", "mode-audio");
+    elPlaybackFrame.classList.add("mode-visualizer");
+    startVizLoop();
+  }
+
+  syncMarkersHeight();
+}
+
+function setTheme(theme) {
+  currentTheme = theme;
+  themeBtns.forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.theme === theme);
+  });
+}
+
+function showNotice(msg) {
+  elModeNotice.textContent = msg;
+  elModeNotice.classList.remove("hidden");
+}
+
+modeBtns.forEach(btn => {
+  btn.addEventListener("click", () => setMode(btn.dataset.mode));
+});
+
+themeBtns.forEach(btn => {
+  btn.addEventListener("click", () => setTheme(btn.dataset.theme));
+});
+
+// ============================================================
+// Existing player logic
+// ============================================================
+
 function parseFilename(filename) {
   const base = filename.replace(/\.[^.]+$/, "");
   let year = null;
@@ -99,6 +434,8 @@ async function load() {
     return;
   }
 
+  fileExt = (current.ext || "").toLowerCase();
+
   const { artist, title, year } = parseFilename(current.filename);
   const yearPartTitle = year ? ` - ${year}` : "";
   elTitle.textContent = artist ? `${artist} - ${title}${yearPartTitle}` : title;
@@ -114,7 +451,9 @@ async function load() {
 
   renderMarkers();
 
-  // Pre-render strip on load if markers exist
+  const defaultMode = current.defaultMode || "video";
+  setMode(defaultMode);
+
   if (markers.length > 0) {
     if (markers[0].t === 0) {
       updateNowPlaying(0);
@@ -181,21 +520,26 @@ if (elImportMarkersBtn && elMarkerText) {
 
 if (elSaveBtn) elSaveBtn.addEventListener("click", save);
 
-// --- Markers panel: height sync to video ---
+// --- Markers panel: height sync ---
 const elMarkersScroll = document.getElementById("markers-scroll");
 const elMarkersToggle = document.getElementById("markersToggle");
 let markersCollapsed = false;
 
 function syncMarkersHeight() {
   if (markersCollapsed) return;
-  const videoHeight = elPlayer.getBoundingClientRect().height;
-  if (videoHeight > 0) {
-    elMarkersScroll.style.maxHeight = videoHeight + "px";
+  let targetHeight;
+  if (currentMode === "audio") {
+    targetHeight = window.innerHeight * 0.5;
+  } else {
+    targetHeight = elPlaybackFrame.getBoundingClientRect().height;
+  }
+  if (targetHeight > 0) {
+    elMarkersScroll.style.maxHeight = targetHeight + "px";
   }
 }
 
 const resizeObserver = new ResizeObserver(() => syncMarkersHeight());
-resizeObserver.observe(elPlayer);
+resizeObserver.observe(elPlaybackFrame);
 window.addEventListener("resize", syncMarkersHeight);
 
 // --- Markers panel: collapse toggle ---
@@ -232,7 +576,6 @@ function getActiveMarkerIdx(currentTime) {
 }
 
 function renderPreparedState() {
-  // Show strip with first marker centered (full size, muted color), no left pill
   elNowPlayingStrip.classList.remove("hidden");
   elNpPrev.style.display = "none";
   elNpPrev.onclick = null;
@@ -252,13 +595,11 @@ function updateNowPlaying(idx) {
   if (idx === lastActiveIdx) return;
   lastActiveIdx = idx;
 
-  // Update active class on marker list items
   const markerEls = elMarkers.querySelectorAll(".marker");
   markerEls.forEach((el, i) => {
     el.classList.toggle("active", i === idx);
   });
 
-  // idx -1 means before first marker — show prepared state if markers exist
   if (idx === -1) {
     if (markers.length > 0) {
       renderPreparedState();
@@ -270,7 +611,6 @@ function updateNowPlaying(idx) {
 
   elNowPlayingStrip.classList.remove("hidden");
 
-  // Restore current pill styling in case pre-load prepared state changed it
   elNpCurrent.classList.add("np-current");
   elNpCurrent.classList.remove("np-adjacent", "prepared");
 
@@ -295,7 +635,16 @@ elPlayer.addEventListener("timeupdate", () => {
   updateNowPlaying(idx);
 });
 
+// --- Cleanup on unload ---
+window.addEventListener("beforeunload", () => {
+  stopVizLoop();
+  if (audioCtx) {
+    audioCtx.close().catch(() => {});
+  }
+});
+
 load();
+
 // --- Browse overlay ---
 const elBrowseBtn = document.getElementById("browseBtn");
 document.getElementById("backBtn").addEventListener("click", () => {
@@ -332,7 +681,6 @@ async function loadBrowse() {
   const res = await fetch(url);
   const data = await res.json();
 
-  // Populate library selector once
   if (browseLibraries.length === 0) {
     browseLibraries = data.libraries ?? [];
     const optAll = document.createElement("option");

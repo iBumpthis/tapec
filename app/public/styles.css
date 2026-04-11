@@ -362,3 +362,445 @@ video {
     border-left: none;
   }
 }
+
+/* ============================================================
+   0.5 — Playback modes, visualizer, toolbar
+   Append to existing styles.css
+   ============================================================ */
+
+/* Playback frame: contains video + canvas + custom controls */
+.playback-frame {
+  position: relative;
+  width: 100%;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.playback-frame video {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.playback-frame canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  display: none;
+}
+
+/* --- Mode: video (default) --- */
+.playback-frame.mode-video video {
+  display: block;
+}
+.playback-frame.mode-video canvas {
+  display: none;
+}
+
+/* --- Mode: audio only --- */
+.playback-frame.mode-audio {
+  background: #424B52;
+  border-radius: 10px;
+}
+.playback-frame.mode-audio video {
+  display: none;
+}
+.playback-frame.mode-audio canvas {
+  display: none;
+}
+
+/* --- Mode: visualizer --- */
+.playback-frame.mode-visualizer {
+  aspect-ratio: 16 / 9;
+  max-height: 60vh;
+}
+.playback-frame.mode-visualizer video {
+  display: none;
+}
+.playback-frame.mode-visualizer canvas {
+  display: block;
+}
+
+/* ============================================================
+   Custom control bar — always visible, all modes
+   ============================================================ */
+.custom-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(50, 55, 62, 0.95);
+}
+
+/* In video mode, pin to bottom + hover reveal */
+.playback-frame.mode-video .custom-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  background: rgba(30, 34, 38, 0.85);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.playback-frame.mode-video:hover .custom-controls,
+.playback-frame .custom-controls.cc-visible {
+  opacity: 1;
+}
+
+/* In visualizer mode, pin to bottom + hover reveal */
+.playback-frame.mode-visualizer .custom-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  background: rgba(30, 34, 38, 0.85);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.playback-frame.mode-visualizer:hover .custom-controls,
+.playback-frame .custom-controls.cc-visible {
+  opacity: 1;
+}
+
+/* Audio mode: controls in normal flow, always visible */
+.playback-frame.mode-audio .custom-controls {
+  position: relative;
+  opacity: 1;
+  background: rgba(50, 55, 62, 0.95);
+}
+
+/* Fullscreen: always show controls on hover */
+.playback-frame:fullscreen .custom-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  background: rgba(30, 34, 38, 0.85);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.playback-frame:fullscreen .custom-controls.cc-visible {
+  opacity: 1;
+}
+
+/* Audio fullscreen: black bg, controls centered at bottom */
+.playback-frame.mode-audio:fullscreen {
+  display: flex;
+  align-items: flex-end;
+  background: #000;
+}
+
+.playback-frame.mode-audio:fullscreen .custom-controls {
+  position: relative;
+  width: 100%;
+  opacity: 1;
+}
+
+.playback-frame:fullscreen .custom-controls {
+  pointer-events: auto;
+}
+.playback-frame:fullscreen:hover .custom-controls:not(.cc-visible) {
+  opacity: 0;
+}
+
+.playback-frame:fullscreen video {
+  max-height: 100%;
+  max-width: 100%;
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+}
+
+.playback-frame:fullscreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.playback-frame:fullscreen canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* ============================================================
+   Control bar elements
+   ============================================================ */
+
+/* Shared button base */
+.cc-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #B4CCDE;
+  color: #2a2a2a;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.cc-btn:hover {
+  background: #DEB29E;
+}
+.cc-btn .hidden {
+  display: none;
+}
+
+/* Time labels */
+.cc-time {
+  font-size: 12px;
+  color: #B4CCDE;
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+  text-align: center;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+/* ============================================================
+   Seek bar — pill-shaped track + round thumb
+   ============================================================ */
+.cc-seek {
+  flex: 1;
+  min-width: 0;
+  height: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #616E78;
+  border-radius: 20px;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.cc-seek:hover {
+  background: #738290;
+}
+
+/* Webkit thumb */
+.cc-seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #B4CCDE;
+  border: 2px solid #424B52;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.cc-seek::-webkit-slider-thumb:hover {
+  background: #DEB29E;
+  transform: scale(1.15);
+}
+.cc-seek::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 20px;
+}
+
+/* Firefox thumb */
+.cc-seek::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #B4CCDE;
+  border: 2px solid #424B52;
+  cursor: pointer;
+}
+.cc-seek::-moz-range-thumb:hover {
+  background: #DEB29E;
+}
+.cc-seek::-moz-range-track {
+  height: 8px;
+  border-radius: 20px;
+  background: #616E78;
+}
+
+/* ============================================================
+   Volume slider — pill-shaped, smaller than seek
+   ============================================================ */
+.cc-volume {
+  width: 70px;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #616E78;
+  border-radius: 20px;
+  outline: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.cc-volume:hover {
+  background: #738290;
+}
+
+.cc-volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #9EABB5;
+  border: 2px solid #424B52;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.cc-volume::-webkit-slider-thumb:hover {
+  background: #DEB29E;
+  transform: scale(1.15);
+}
+
+.cc-volume::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #9EABB5;
+  border: 2px solid #424B52;
+  cursor: pointer;
+}
+.cc-volume::-moz-range-thumb:hover {
+  background: #DEB29E;
+}
+.cc-volume::-moz-range-track {
+  height: 6px;
+  border-radius: 20px;
+  background: #616E78;
+}
+
+/* ============================================================
+   Fullscreen button
+   ============================================================ */
+.cc-fullscreen {
+  background: transparent;
+  color: #B4CCDE;
+  border: 1px solid transparent;
+  transition: color 0.15s, background 0.15s;
+}
+.cc-fullscreen:hover {
+  color: #DEB29E;
+  background: rgba(180, 204, 222, 0.1);
+}
+
+/* ============================================================
+   Playback toolbar
+   ============================================================ */
+.playback-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  min-height: 34px;
+  flex-wrap: wrap;
+}
+
+.mode-toggles {
+  display: flex;
+  gap: 4px;
+}
+
+.mode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #424B52;
+  border-radius: 8px;
+  background: #B4CCDE;
+  cursor: pointer;
+  color: #424B52;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.mode-btn:hover {
+  background: #DEB29E;
+  border-color: #91837D;
+}
+
+.mode-btn.active {
+  background: #DEB29E;
+  border-color: #91837D;
+  color: #2a2a2a;
+}
+
+/* ============================================================
+   Theme selector (visible only in visualizer mode)
+   ============================================================ */
+.theme-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 8px;
+  border-left: 1px solid #616E78;
+}
+
+.theme-selector.hidden {
+  display: none;
+}
+
+.theme-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.theme-btn:hover {
+  border-color: #91837D;
+}
+
+.theme-btn.active {
+  border-color: #424B52;
+  box-shadow: 0 0 0 1px #91837D;
+}
+
+.theme-dot {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.theme-dot-muted {
+  background: linear-gradient(135deg, #78858F, #9EABB5);
+}
+
+.theme-dot-colorful {
+  background: linear-gradient(135deg, #6C7EB7, #C278B0);
+}
+
+.theme-dot-rgb {
+  background: conic-gradient(#ff4444, #44ff44, #4444ff, #ff4444);
+}
+
+/* ============================================================
+   Mode notice
+   ============================================================ */
+.mode-notice {
+  font-size: 11px;
+  color: #616E78;
+  font-style: italic;
+}
+
+.mode-notice.hidden {
+  display: none;
+}

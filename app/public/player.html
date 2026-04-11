@@ -26,7 +26,7 @@
     <div class="browse-panel">
       <div class="browse-header">
         <span class="browse-title">Browse Library</span>
-        <button id="browseClose">✕</button>
+        <button id="browseClose">&#10005;</button>
       </div>
       <div class="browse-controls">
         <select id="browseLib"></select>
@@ -40,7 +40,82 @@
   <div class="panel">
     <!-- LEFT: player + editing -->
     <div>
-      <video id="player" controls playsinline></video>
+      <!-- Playback frame: video + canvas + custom controls -->
+      <div class="playback-frame" id="playbackFrame">
+        <video id="player" playsinline></video>
+        <canvas id="vizCanvas"></canvas>
+
+        <!-- Custom control bar — all modes -->
+        <div class="custom-controls" id="customControls">
+          <button class="cc-btn cc-play" id="ccPlay" title="Play/Pause">
+            <svg id="ccPlayIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="6,4 20,12 6,20"/>
+            </svg>
+            <svg id="ccPauseIcon" class="hidden" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="5" y="4" width="4" height="16"/>
+              <rect x="15" y="4" width="4" height="16"/>
+            </svg>
+          </button>
+          <span class="cc-time" id="ccTimeCurrent">0:00</span>
+          <input type="range" class="cc-seek" id="ccSeek" min="0" max="100" step="0.1" value="0" />
+          <span class="cc-time" id="ccTimeDuration">0:00</span>
+          <input type="range" class="cc-volume" id="ccVolume" min="0" max="1" step="0.01" value="1" title="Volume" />
+          <button class="cc-btn cc-fullscreen" id="ccFullscreen" title="Fullscreen">
+            <svg id="ccFsEnter" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15,3 21,3 21,9"/>
+              <polyline points="9,21 3,21 3,15"/>
+              <polyline points="21,3 14,10"/>
+              <polyline points="3,21 10,14"/>
+            </svg>
+            <svg id="ccFsExit" class="hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4,14 10,14 10,20"/>
+              <polyline points="20,10 14,10 14,4"/>
+              <polyline points="14,10 21,3"/>
+              <polyline points="10,14 3,21"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Playback mode toolbar -->
+      <div class="playback-toolbar" id="playbackToolbar">
+        <div class="mode-toggles">
+          <button class="mode-btn active" id="modeVideo" data-mode="video" title="Video">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2"/>
+              <polygon points="10,9 16,12 10,15"/>
+            </svg>
+          </button>
+          <button class="mode-btn" id="modeAudio" data-mode="audio" title="Audio Only">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+            </svg>
+          </button>
+          <button class="mode-btn" id="modeVisualizer" data-mode="visualizer" title="Visualizer">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="10" width="2" height="8" rx="1"/>
+              <rect x="8" y="6" width="2" height="12" rx="1"/>
+              <rect x="12" y="3" width="2" height="18" rx="1"/>
+              <rect x="16" y="8" width="2" height="10" rx="1"/>
+              <rect x="20" y="11" width="2" height="6" rx="1"/>
+            </svg>
+          </button>
+        </div>
+        <div class="theme-selector hidden" id="themeSelector">
+          <button class="theme-btn" data-theme="muted" title="Muted">
+            <span class="theme-dot theme-dot-muted"></span>
+          </button>
+          <button class="theme-btn" data-theme="colorful" title="Colorful">
+            <span class="theme-dot theme-dot-colorful"></span>
+          </button>
+          <button class="theme-btn active" data-theme="rgb" title="RGB">
+            <span class="theme-dot theme-dot-rgb"></span>
+          </button>
+        </div>
+        <div class="mode-notice hidden" id="modeNotice"></div>
+      </div>
 
       <!-- Now playing strip -->
       <div class="now-playing-strip hidden" id="nowPlayingStrip">
@@ -59,7 +134,7 @@
         <h3>Notes/Description</h3>
         <textarea id="notes" placeholder="Notes..."></textarea>
 
-        <h3>Paste Tracklist (v0.2)</h3>
+        <h3>Import Tracks</h3>
         <textarea id="markerText" rows="10" class="mono"
           placeholder="0:00 Intro&#10;01:10 Track name&#10;05:08 Another track"></textarea>
 
@@ -85,7 +160,7 @@
 
   <script src="/player.js"></script>
   <footer class="app-footer">
-    TapeC <span id="app-version">—</span>
+    TapeC <span id="app-version">&mdash;</span>
   </footer>
   <script>
     fetch("/api/health")
