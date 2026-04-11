@@ -255,7 +255,7 @@ function startVizLoop() {
 
     for (let i = 0; i < usableBins; i++) {
       const val = freqData[i] / 255;
-      const barHeight = val * h * 0.9;
+      const barHeight = val * h * 1;
 
       ctx.fillStyle = theme.barColor(i, usableBins, t);
 
