@@ -13,11 +13,12 @@ sets, albums with cue points, etc.).
 
 ## Status
 
-**v0.5.2 stable**
+**v0.5.3 stable**
 
 Version Specific Change:
 
 -   Visualizer cap display value bug fix
+-   Version History HTML Added
 
 This repository represents a working baseline:
 
