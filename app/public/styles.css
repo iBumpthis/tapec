@@ -988,3 +988,28 @@ video {
 .mode-notice.hidden {
   display: none;
 }
+
+/* Fullscreen marker toast */
+.fs-toast {
+  position: absolute;
+  bottom: 72px; /* above custom controls bar */
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 1.1rem;
+  padding: 10px 22px;
+  border-radius: 6px;
+  white-space: nowrap;
+  max-width: 80%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  z-index: 60;
+  opacity: 1;
+  transition: opacity 0.8s ease-in;
+}
+.fs-toast.hidden {
+  opacity: 0;
+  pointer-events: none;
+}

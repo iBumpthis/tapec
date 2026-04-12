@@ -13,12 +13,11 @@ sets, albums with cue points, etc.).
 
 ## Status
 
-**v0.5.5 stable**
+**v0.5.6 stable**
 
 Version Specific Change:
 
--   Pause/Play from Visualizer Overlay Added
--   Second visualization mode (Lines) added and tuned
+-   Track toasts on Full Screen Video Playback
 
 This repository represents a working baseline:
 

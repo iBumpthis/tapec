@@ -712,6 +712,25 @@ function updateNowPlaying(idx) {
   elNpNext.textContent = next ? `${fmtTime(next.t)} ${next.label}` : "";
   elNpNext.style.display = next ? "" : "none";
   elNpNext.onclick = next ? () => { elPlayer.currentTime = next.t; elPlayer.play(); } : null;
+
+  // --- Fullscreen marker toast ---
+  const elFsToast = document.getElementById("fsToast");
+  let fsToastTimer = null;
+
+  function showFsToast(marker) {
+    if (!document.fullscreenElement) return;
+    if (!markers || markers.length === 0) return;
+    const label = marker.name || marker.label || fmtTime(marker.t);
+    elFsToast.textContent = label;
+    elFsToast.classList.remove("hidden");
+    if (fsToastTimer) clearTimeout(fsToastTimer);
+    fsToastTimer = setTimeout(() => {
+      elFsToast.classList.add("hidden");
+      fsToastTimer = null;
+    }, 4500);
+  }
+
+  if (idx >= 0) showFsToast(markers[idx]);
 }
 
 elPlayer.addEventListener("timeupdate", () => {
