@@ -77,6 +77,13 @@
         </div>
       </div>
 
+      <!-- Now playing strip -->
+      <div class="now-playing-strip hidden" id="nowPlayingStrip">
+        <div class="np-pill np-adjacent" id="npPrev"></div>
+        <div class="np-pill np-current" id="npCurrent"></div>
+        <div class="np-pill np-adjacent" id="npNext"></div>
+      </div>
+
       <!-- Playback mode toolbar -->
       <div class="playback-toolbar" id="playbackToolbar">
         <div class="mode-toggles">
@@ -117,35 +124,56 @@
         <div class="mode-notice hidden" id="modeNotice"></div>
       </div>
 
-      <!-- Now playing strip -->
-      <div class="now-playing-strip hidden" id="nowPlayingStrip">
-        <div class="np-pill np-adjacent" id="npPrev"></div>
-        <div class="np-pill np-current" id="npCurrent"></div>
-        <div class="np-pill np-adjacent" id="npNext"></div>
-      </div>
-
       <!-- Title + breadcrumb, shown below video -->
       <div class="video-meta">
         <h1 id="title">TapeC Player</h1>
         <div class="small" id="sub"></div>
       </div>
 
-      <div class="row">
-        <h3>Notes/Description</h3>
-        <textarea id="notes" placeholder="Notes..."></textarea>
+      <div class="action-buttons">
+        <button class="action-trigger" id="openNotesOverlay">+ Notes</button>
+        <button class="action-trigger" id="openImportOverlay">+ Import Tracks</button>
+      </div>
 
-        <h3>Import Tracks</h3>
-        <textarea id="markerText" rows="10" class="mono"
-          placeholder="0:00 Intro&#10;01:10 Track name&#10;05:08 Another track"></textarea>
+      <!-- Notes display (read-only, shown only when notes exist) -->
+      <div id="notesDisplay" class="notes-display hidden">
+        <div id="notesDisplayContent"></div>
+      </div>
 
-        <div class="row">
-          <button id="importMarkersBtn">Import Markers</button>
-          <span id="importStatus" class="small"></span>
+      <!-- Notes overlay -->
+      <div id="notesOverlay" class="editor-overlay hidden">
+        <div class="editor-backdrop" data-close="notesOverlay"></div>
+        <div class="editor-modal">
+          <div class="editor-modal-header">
+            <span class="editor-modal-title">Notes / Description</span>
+            <button class="editor-modal-close" data-close="notesOverlay">&#10005;</button>
+          </div>
+          <div class="editor-modal-body">
+            <textarea id="notes" placeholder="Notes..."></textarea>
+          </div>
+          <div class="editor-modal-footer">
+            <span id="saveStatus" class="small"></span>
+            <button id="saveBtn">Save</button>
+          </div>
         </div>
+      </div>
 
-        <div class="row">
-          <button id="saveBtn">Save</button>
-          <span id="saveStatus" class="small"></span>
+      <!-- Import overlay -->
+      <div id="importOverlay" class="editor-overlay hidden">
+        <div class="editor-backdrop" data-close="importOverlay"></div>
+        <div class="editor-modal">
+          <div class="editor-modal-header">
+            <span class="editor-modal-title">Import Tracks</span>
+            <button class="editor-modal-close" data-close="importOverlay">&#10005;</button>
+          </div>
+          <div class="editor-modal-body">
+            <textarea id="markerText" rows="10" class="mono"
+              placeholder="0:00 Intro&#10;01:10 Track name&#10;05:08 Another track"></textarea>
+          </div>
+          <div class="editor-modal-footer">
+            <span id="importStatus" class="small"></span>
+            <button id="importMarkersBtn">Import</button>
+          </div>
         </div>
       </div>
     </div>

@@ -249,7 +249,7 @@ function startVizLoop() {
     analyser.getByteFrequencyData(freqData);
 
     const t = performance.now() / 1000;
-    const usableBins = Math.floor(analyser.frequencyBinCount * 0.6);
+    const usableBins = Math.floor(analyser.frequencyBinCount * 0.38);
     const barWidth = w / (usableBins * 2);
     const centerX = w / 2;
 
@@ -259,7 +259,7 @@ function startVizLoop() {
 
       ctx.fillStyle = theme.barColor(i, usableBins, t);
 
-      const gap = Math.max(1, barWidth * 0.15);
+      const gap = Math.max(1, barWidth * 0.1);
       const bw = barWidth - gap;
 
       const xRight = centerX + i * barWidth;
@@ -426,6 +426,20 @@ function parseImport(text) {
   return out;
 }
 
+// --- Notes display (read-only block below action buttons) ---
+const elNotesDisplay = document.getElementById("notesDisplay");
+const elNotesDisplayContent = document.getElementById("notesDisplayContent");
+
+function syncNotesDisplay() {
+  const text = (elNotes.value || "").trim();
+  if (text) {
+    elNotesDisplayContent.textContent = text;
+    elNotesDisplay.classList.remove("hidden");
+  } else {
+    elNotesDisplay.classList.add("hidden");
+  }
+}
+
 async function load() {
   const res = await fetch(`/api/media/${encodeURIComponent(id)}`);
   const current = await res.json();
@@ -448,6 +462,8 @@ async function load() {
   markers = Array.isArray(current.meta?.markers) ? current.meta.markers : [];
   elNotes.value = current.meta?.notes ?? "";
   lastActiveIdx = -1;
+
+  syncNotesDisplay();
 
   renderMarkers();
 
@@ -480,6 +496,7 @@ async function save() {
   }
 
   elSaveStatus.textContent = "Saved ✅";
+  syncNotesDisplay();
   setTimeout(() => (elSaveStatus.textContent = ""), 1500);
 }
 
@@ -644,6 +661,22 @@ window.addEventListener("beforeunload", () => {
 });
 
 load();
+
+// --- Editor overlays (Notes / Import) ---
+document.getElementById("openNotesOverlay").addEventListener("click", () => {
+  document.getElementById("notesOverlay").classList.remove("hidden");
+});
+
+document.getElementById("openImportOverlay").addEventListener("click", () => {
+  document.getElementById("importOverlay").classList.remove("hidden");
+});
+
+document.querySelectorAll("[data-close]").forEach(el => {
+  el.addEventListener("click", () => {
+    const targetId = el.dataset.close;
+    document.getElementById(targetId).classList.add("hidden");
+  });
+});
 
 // --- Browse overlay ---
 const elBrowseBtn = document.getElementById("browseBtn");

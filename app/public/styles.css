@@ -793,6 +793,148 @@ video {
 }
 
 /* ============================================================
+   Action trigger buttons (Notes / Import)
+   ============================================================ */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.action-trigger {
+  padding: 6px 16px;
+  font-size: 13px;
+  border: 1px solid #424B52;
+  border-radius: 8px;
+  background: #B4CCDE;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.action-trigger:hover {
+  background: #DEB29E;
+  border-color: #91837D;
+}
+
+/* ============================================================
+   Notes display (read-only, below action buttons)
+   ============================================================ */
+.notes-display {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: #B4CCDE;
+  border: 1px solid #616E78;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.notes-display #notesDisplayContent {
+  margin: 0;
+  padding: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.notes-display.hidden {
+  display: none;
+}
+
+/* ============================================================
+   Editor overlays (Notes, Import Tracks)
+   ============================================================ */
+.editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editor-overlay.hidden {
+  display: none;
+}
+
+.editor-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1;
+}
+
+.editor-modal {
+  position: relative;
+  z-index: 2;
+  width: 560px;
+  max-width: 90vw;
+  max-height: 80vh;
+  background: #768692;
+  border: 1px solid #616E78;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.editor-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #616E78;
+  flex-shrink: 0;
+}
+
+.editor-modal-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.editor-modal-close {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 16px;
+  cursor: pointer;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.editor-modal-close:hover {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.editor-modal-body {
+  padding: 16px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.editor-modal-body textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.editor-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid #616E78;
+  flex-shrink: 0;
+}
+
+/* ============================================================
    Mode notice
    ============================================================ */
 .mode-notice {
