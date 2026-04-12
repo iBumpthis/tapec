@@ -736,6 +736,48 @@ video {
 }
 
 /* ============================================================
+   Viz style selector (Bars / Lines, visible only in visualizer mode)
+   ============================================================ */
+.viz-style-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 8px;
+  border-left: 1px solid #616E78;
+}
+
+.viz-style-selector.hidden {
+  display: none;
+}
+
+.viz-style-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid #424B52;
+  border-radius: 6px;
+  background: #B4CCDE;
+  cursor: pointer;
+  color: #424B52;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.viz-style-btn:hover {
+  background: #DEB29E;
+  border-color: #91837D;
+}
+
+.viz-style-btn.active {
+  background: #DEB29E;
+  border-color: #91837D;
+  color: #2a2a2a;
+}
+
+/* ============================================================
    Theme selector (visible only in visualizer mode)
    ============================================================ */
 .theme-selector {

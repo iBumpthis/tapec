@@ -13,12 +13,12 @@ sets, albums with cue points, etc.).
 
 ## Status
 
-**v0.5.4 stable**
+**v0.5.5 stable**
 
 Version Specific Change:
 
--   Notes/Track Import Collapse
--   Context/Content Aware Notes/Description Display
+-   Pause/Play from Visualizer Overlay Added
+-   Second visualization mode (Lines) added and tuned
 
 This repository represents a working baseline:
 

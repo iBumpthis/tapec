@@ -27,9 +27,11 @@ const elPlaybackFrame = document.getElementById("playbackFrame");
 const elVizCanvas = document.getElementById("vizCanvas");
 const elPlaybackToolbar = document.getElementById("playbackToolbar");
 const elThemeSelector = document.getElementById("themeSelector");
+const elVizStyleSelector = document.getElementById("vizStyleSelector");
 const elModeNotice = document.getElementById("modeNotice");
 const modeBtns = document.querySelectorAll(".mode-btn");
 const themeBtns = document.querySelectorAll(".theme-btn");
+const vizStyleBtns = document.querySelectorAll(".viz-style-btn");
 
 // --- Custom controls ---
 const elCustomControls = document.getElementById("customControls");
@@ -51,6 +53,10 @@ let analyser = null;
 let sourceNode = null;
 let vizAnimFrame = null;
 let freqData = null;
+let waveData = null;
+
+// --- Visualizer style ---
+let vizStyle = "bars";
 
 const AUDIO_ONLY_EXTS = new Set(["mp3", "wav", "flac", "m4a", "ogg", "aac", "wma"]);
 
@@ -60,15 +66,6 @@ const AUDIO_ONLY_EXTS = new Set(["mp3", "wav", "flac", "m4a", "ogg", "aac", "wma
 
 // Play/pause
 elCcPlay.addEventListener("click", () => {
-  if (elPlayer.paused) {
-    elPlayer.play();
-  } else {
-    elPlayer.pause();
-  }
-});
-
-// Click video to play/pause (video + visualizer modes)
-elPlayer.addEventListener("click", () => {
   if (elPlayer.paused) {
     elPlayer.play();
   } else {
@@ -149,8 +146,16 @@ elPlaybackFrame.addEventListener("mousemove", () => {
   }, 3000);
 });
 
-// Also show on any click (for play/pause), reset timer
-elPlaybackFrame.addEventListener("click", () => {
+// Frame click: play/pause (all modes) + fullscreen idle timer reset
+// Guard against clicks on the control bar bubbling up to the frame
+elPlaybackFrame.addEventListener("click", (e) => {
+  if (!elCustomControls.contains(e.target)) {
+    if (elPlayer.paused) {
+      elPlayer.play();
+    } else {
+      elPlayer.pause();
+    }
+  }
   if (!document.fullscreenElement) return;
   elCustomControls.classList.add("cc-visible");
   clearTimeout(fsIdleTimer);
@@ -207,8 +212,9 @@ function ensureAudioContext() {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = 0.8;
+    analyser.smoothingTimeConstant = 0.88;
     freqData = new Uint8Array(analyser.frequencyBinCount);
+    waveData = new Uint8Array(analyser.fftSize);
 
     sourceNode = audioCtx.createMediaElementSource(elPlayer);
     sourceNode.connect(analyser);
@@ -221,8 +227,10 @@ function ensureAudioContext() {
   }
 }
 
+
+
 // ============================================================
-// Visualizer draw loop — mirrored from center
+// Visualizer draw loop — bars (mirrored) or lines (waveform)
 // ============================================================
 function startVizLoop() {
   if (vizAnimFrame) return;
@@ -242,31 +250,82 @@ function startVizLoop() {
     const w = canvas.width;
     const h = canvas.height;
     const theme = VIZ_THEMES[currentTheme] || VIZ_THEMES.rgb;
-
-    ctx.fillStyle = theme.bg;
-    ctx.fillRect(0, 0, w, h);
-
-    analyser.getByteFrequencyData(freqData);
-
     const t = performance.now() / 1000;
-    const usableBins = Math.floor(analyser.frequencyBinCount * 0.38);
-    const barWidth = w / (usableBins * 2);
-    const centerX = w / 2;
 
-    for (let i = 0; i < usableBins; i++) {
-      const val = freqData[i] / 255;
-      const barHeight = val * h * 1;
+    if (vizStyle === "bars") {
+      // Full clear each frame — bars don't use decay
+      ctx.fillStyle = theme.bg;
+      ctx.fillRect(0, 0, w, h);
 
-      ctx.fillStyle = theme.barColor(i, usableBins, t);
+      analyser.getByteFrequencyData(freqData);
 
-      const gap = Math.max(1, barWidth * 0.1);
-      const bw = barWidth - gap;
+      const usableBins = Math.floor(analyser.frequencyBinCount * 0.38);
+      const barWidth = w / (usableBins * 2);
+      const centerX = w / 2;
 
-      const xRight = centerX + i * barWidth;
-      ctx.fillRect(xRight + gap / 2, h - barHeight, bw, barHeight);
+      for (let i = 0; i < usableBins; i++) {
+        const val = freqData[i] / 255;
+        const barHeight = val * h;
 
-      const xLeft = centerX - (i + 1) * barWidth;
-      ctx.fillRect(xLeft + gap / 2, h - barHeight, bw, barHeight);
+        ctx.fillStyle = theme.barColor(i, usableBins, t);
+
+        const gap = Math.max(1, barWidth * 0.1);
+        const bw = barWidth - gap;
+
+        const xRight = centerX + i * barWidth;
+        ctx.fillRect(xRight + gap / 2, h - barHeight, bw, barHeight);
+
+        const xLeft = centerX - (i + 1) * barWidth;
+        ctx.fillRect(xLeft + gap / 2, h - barHeight, bw, barHeight);
+      }
+
+    } else {
+      // Lines mode — time domain waveform with persistence decay
+      // Partial clear creates trail/decay effect
+      ctx.fillStyle = "rgba(0, 0, 0, 0.11)";
+      ctx.fillRect(0, 0, w, h);
+
+      analyser.getByteTimeDomainData(waveData);
+
+      const count = waveData.length;
+      const centerY = h / 2;
+
+      // Draw 7 layers: center line full opacity, outer layers fade
+      const layers = [
+        { offset: 0,   alpha: 1.0  },
+        { offset: -18, alpha: 0.55 },
+        { offset:  18, alpha: 0.55 },
+        { offset: -36, alpha: 0.3  },
+        { offset:  36, alpha: 0.3  },
+        { offset: -54, alpha: 0.1  },
+        { offset:  54, alpha: 0.1  },        
+      ];
+
+      for (const layer of layers) {
+        ctx.globalAlpha = layer.alpha;
+        ctx.strokeStyle = theme.barColor(
+          Math.floor(count / 2), count, t
+        );
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+
+        for (let i = 0; i < count; i++) {
+          const x = (i / (count - 1)) * w;
+          // waveData values: 0–255, 128 = silence
+          const amplitude = ((waveData[i] / 128) - 1) * (h * 0.45);
+          const y = centerY + layer.offset + amplitude;
+
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+
+        ctx.stroke();
+      }
+
+      ctx.globalAlpha = 1.0;
     }
   };
 
@@ -292,6 +351,7 @@ function setMode(mode) {
   });
 
   elThemeSelector.classList.toggle("hidden", mode !== "visualizer");
+  elVizStyleSelector.classList.toggle("hidden", mode !== "visualizer");
 
   elModeNotice.classList.add("hidden");
   elModeNotice.textContent = "";
@@ -349,6 +409,13 @@ modeBtns.forEach(btn => {
 
 themeBtns.forEach(btn => {
   btn.addEventListener("click", () => setTheme(btn.dataset.theme));
+});
+
+vizStyleBtns.forEach(btn => {
+  btn.addEventListener("click", () => {
+    vizStyle = btn.dataset.style;
+    vizStyleBtns.forEach(b => b.classList.toggle("active", b.dataset.style === vizStyle));
+  });
 });
 
 // ============================================================
