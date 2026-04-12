@@ -13,11 +13,11 @@ sets, albums with cue points, etc.).
 
 ## Status
 
-**v0.5.6 stable**
+**v1.0.0 stable**
 
 Version Specific Change:
 
--   Track toasts on Full Screen Video Playback
+-   Cleanup for final launch and move to maintenance mode
 
 This repository represents a working baseline:
 
@@ -25,7 +25,7 @@ This repository represents a working baseline:
 -   Stale cleanup on rename/delete
 -   Library browsing + search
 -   Player page
--   Track Marker Import (v0.2 format)
+-   Track Marker Import
 -   Stable server lifecycle
 -   Marker syncing during video playback
 -   Playback mode toggles (Video, Audio Only, Visualizer)
@@ -43,7 +43,7 @@ This repository represents a working baseline:
 -   API endpoints:
     -   `GET /api/library`
     -   `GET /api/media/:id`
-    -   `GET /api/media/:id/meta`
+    -   `POST /api/media/:id/meta`
     -   `POST /api/scan`
     -   `GET /api/health`
 
@@ -77,8 +77,10 @@ Example:
     Track One [00:00-00:45]
     Track Two [00:45-03:22]
 
-Future versions may support additional formats (e.g., ranges and overlap
-repair), but v0 intentionally keeps parsing simple and predictable.
+The importer handles multiple formats per line: time-first, time-last,
+bracketed ranges, and bare ranges.
+
+Overlapping markers with explicit end times are automatically adjusted.
 
 ------------------------------------------------------------------------
 
@@ -115,7 +117,10 @@ Edit `config.json`:
 
 -   Set `libraries[].path` to your media directories
 -   Set `dbPath` to your preferred SQLite location
+-   Set `metaRoot` to the directory for sidecar `.meta.json` files
 -   Set `port` (default: `32410`)
+-   Set `host` to control the bind address (default: `0.0.0.0`; override via `TAPEC_HOST` env var)
+-   Set `defaultPlayback` to map file extensions to their default playback mode
 
 ### Example — Windows (UNC paths)
 
@@ -125,8 +130,15 @@ Edit `config.json`:
     { "name": "Music", "path": "\\\\SERVER\\SHARE\\Music" }
   ],
   "dbPath": "C:\\TapeC\\tapec.sqlite",
+  "metaRoot": "C:\\ProgramData\\TapeC\\metadata",
+  "host": "0.0.0.0",
   "port": 32410,
-  "allowedExtensions": ["mp3", "mp4", "m4a", "wav"]
+  "allowedExtensions": ["mp3", "mp4", "m4a", "wav"],
+  "defaultPlayback": {
+    "video": ["mp4"],
+    "audio": ["mp3", "wav", "m4a"],
+    "visualizer": []
+  }
 }
 ```
 
@@ -138,8 +150,15 @@ Edit `config.json`:
     { "name": "Music", "path": "/mnt/media/music" }
   ],
   "dbPath": "/var/lib/tapec/tapec.sqlite",
+  "metaRoot": "/var/lib/tapec/metadata",
+  "host": "0.0.0.0",
   "port": 32410,
-  "allowedExtensions": ["mp3", "mp4", "m4a", "wav"]
+  "allowedExtensions": ["mp3", "mp4", "m4a", "wav"],
+  "defaultPlayback": {
+    "video": ["mp4"],
+    "audio": ["mp3", "wav", "m4a"],
+    "visualizer": []
+  }
 }
 ```
 
@@ -283,26 +302,19 @@ Why separate metadata storage:
 
 ------------------------------------------------------------------------
 
-## Roadmap (Next Phases)
+## Roadmap
 
--   Smarter marker import (range support + overlap repair)
--   Playlist System (for single file/mp3 playback)
-    -   Long future phase for playlist creation off markers from longer videos
-    -   Long future phase for party input/queue system
--   MP4 audio-only toggle
-    -   Playback of video files in audio only mode
-    -   Likely to start with simplified audio only player
-    -   Future ffmpeg transcode to audio format
--   Metadata UX polish
--   Mobile Export
-    -   Save and play locally on mobile device or save Audio/Video to mobile device
--   Visualizer for non video playback
-    -   Toggle to display vizualizer on video files
--   True dark mode / light mode toggle
+-   Maintenance, version 1 complete and released
 
 ------------------------------------------------------------------------
 
 ## Last Significant Change(s)
+
+v1.0.0 [2026-04-12]
+-   Project met and exceed goals from original build plan
+-   Final cleanup of project and codebase
+-   Removal of stale/legacy items
+-   Code review for planning on larger/data first driven fork
 
 v0.5.0 [2026-04-11]
 -   Playback visualization mode toggles added
@@ -315,7 +327,7 @@ v0.4.0 [2026-03-22]
     -   Track markers now timestamp and highlight during playback
     -   Added collapsible functionality to panel track markers
     -   Added below video scroll track markers (maintains when right panel collapsed)
-    -   Relaignment of `player.js` page information to support upcoming layout and metadata overhaul
+    -   Realignment of `player.js` page information to support upcoming layout and metadata overhaul
 
 v0.3.0 [2026-03-22]
 -   Security/Dependencies Upgrades
@@ -352,6 +364,5 @@ MIT --- see LICENSE.
 TapeC was initially developed with the assistance of AI tools as part of
 a proof of concept and learning process.
 
-While functional, this project is evolving. Review, test, and apply your
-own security and production best practices before deploying in sensitive
-or exposed environments.
+Review, test, and apply your own security and production best practices
+before deploying in sensitive or exposed environments.

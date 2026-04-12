@@ -448,21 +448,6 @@ function fmtTime(sec) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function parseTimestampToSec(ts) {
-  const parts = ts.trim().split(":").map(p => p.trim());
-  if (parts.length === 2) {
-    const [m, s] = parts.map(Number);
-    if (!Number.isFinite(m) || !Number.isFinite(s)) return null;
-    return m * 60 + s;
-  }
-  if (parts.length === 3) {
-    const [h, m, s] = parts.map(Number);
-    if (!Number.isFinite(h) || !Number.isFinite(m) || !Number.isFinite(s)) return null;
-    return h * 3600 + m * 60 + s;
-  }
-  return null;
-}
-
 function renderMarkers() {
   elMarkers.innerHTML = "";
   for (const mk of markers) {
@@ -475,22 +460,6 @@ function renderMarkers() {
     });
     elMarkers.appendChild(div);
   }
-}
-
-function parseImport(text) {
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-  const out = [];
-  for (const line of lines) {
-    const m = /^(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*)$/.exec(line);
-    if (!m) continue;
-    const t = parseTimestampToSec(m[1]);
-    if (t == null) continue;
-    const label = m[2].trim();
-    if (!label) continue;
-    out.push({ t, label });
-  }
-  out.sort((a, b) => a.t - b.t);
-  return out;
 }
 
 // --- Notes display (read-only block below action buttons) ---

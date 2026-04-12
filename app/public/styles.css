@@ -106,14 +106,6 @@ video {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
-.row {
-    margin-top: 8px;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
 .app-footer {
   margin-top: 2rem;
   padding: 0.5rem 1rem;
